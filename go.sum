@@ -2,6 +2,8 @@ github.com/BurntSushi/toml v1.2.1 h1:9F2/+DoOYIOksmaJFPw1tGFy1eDnIJXg+UHjuD8lTak
 github.com/BurntSushi/toml v1.2.1/go.mod h1:CxXYINrC8qIiEnFrOxCa7Jy5BFHlXnUU2pbicEuybxQ=
 github.com/Leleria/Contract v0.0.3 h1:5OqXuXSwfvUEgbhdFh9atKFqp2NC+oleTh0lJKFzYCY=
 github.com/Leleria/Contract v0.0.3/go.mod h1:2jZsYCglUMeiTqQ/QzM7HFavtFYydB1WoNrCLqoJIsc=
+github.com/Leleria/Contract v0.0.8 h1:nSGi8KsoQoBL22RL6LZVsQUpIJqd+ZE7jqava7ANm+Q=
+github.com/Leleria/Contract v0.0.8/go.mod h1:2jZsYCglUMeiTqQ/QzM7HFavtFYydB1WoNrCLqoJIsc=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=

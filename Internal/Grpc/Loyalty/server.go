@@ -28,11 +28,124 @@ type Loyalty interface {
 		maxCountUses int32,
 	) (result string, err error)
 	DeletePromoCode(ctx context.Context, name string) (result string, err error)
+	ChangeNamePromoCode(ctx context.Context, name string, newName string) (result string, err error)
+	ChangeTypeDiscountPromoCode(ctx context.Context, name string, typeDiscount int32) (result string, err error)
+	ChangeValueDiscountPromoCode(ctx context.Context, name string, valueDiscount int32) (result string, err error)
+	ChangeDateStartActivePromoCode(ctx context.Context, name string, dateStartActive string) (result string, err error)
+	ChangeDateFinishActivePromoCode(ctx context.Context, name string, dateFinish string) (result string, err error)
+	ChangeMaxCountUsesPromoCode(ctx context.Context, name string, maxCountUses int32) (result string, err error)
 }
 
+func (s *ServerAPI) ChangeNamePromoCode(ctx context.Context,
+	in *sl.ChangeNamePromoCodeRequest) (*sl.ChangeNamePromoCodeResponse, error) {
+	if !CheckName(in.GetName()) {
+		return nil, status.Error(codes.InvalidArgument, "incorrect name")
+	}
+	if !CheckName(in.GetNewName()) {
+		return nil, status.Error(codes.InvalidArgument, "incorrect newName")
+	}
+	result, err := s.loyalty.ChangeNamePromoCode(ctx, in.GetName(), in.GetNewName())
+	if err != nil {
+		if errors.Is(err, Storage.ErrPromoCodeExists) {
+			return nil, status.Error(codes.NotFound, "promo code not found")
+		}
+		return nil, status.Error(codes.Internal, "incorrect name")
+	}
+	return &sl.ChangeNamePromoCodeResponse{Result: result}, nil
+}
+func (s *ServerAPI) ChangeTypeDiscountPromoCode(ctx context.Context,
+	in *sl.ChangeTypeDiscountPromoCodeRequest) (*sl.ChangeTypeDiscountPromoCodeResponse, error) {
+	if !CheckName(in.Name) {
+		return nil, status.Error(codes.InvalidArgument, "incorrect name")
+	}
+	if in.TypeDiscount != 1 && in.TypeDiscount != 2 {
+		return nil, status.Error(codes.InvalidArgument, "incorrect name")
+	}
+	result, err := s.loyalty.ChangeTypeDiscountPromoCode(ctx, in.GetName(), in.TypeDiscount)
+	if err != nil {
+		if errors.Is(err, Storage.ErrPromoCodeExists) {
+			return nil, status.Error(codes.NotFound, "promo code not found")
+		}
+		return nil, status.Error(codes.Internal, "incorrect type promo code")
+	}
+	return &sl.ChangeTypeDiscountPromoCodeResponse{Result: result}, nil
+}
+func (s *ServerAPI) ChangeValueDiscountPromoCode(ctx context.Context,
+	in *sl.ChangeValueDiscountPromoCodeRequest) (*sl.ChangeValueDiscountPromoCodeResponse, error) {
+	if !CheckName(in.GetName()) {
+		return nil, status.Error(codes.InvalidArgument, "incorrect name")
+	}
+	if in.GetValueDiscount() <= 0 {
+		return nil, status.Error(codes.InvalidArgument, "incorrect value")
+	}
+	result, err := s.loyalty.ChangeValueDiscountPromoCode(ctx, in.GetName(), in.GetValueDiscount())
+	if err != nil {
+		if errors.Is(err, Storage.ErrPromoCodeExists) {
+			return nil, status.Error(codes.NotFound, "promo code not found")
+		}
+		return nil, status.Error(codes.Internal, "incorrect value")
+	}
+	return &sl.ChangeValueDiscountPromoCodeResponse{Result: result}, nil
+}
+func (s *ServerAPI) ChangeDateStartActivePromoCode(ctx context.Context,
+	in *sl.ChangeDateStartActivePromoCodeRequest) (*sl.ChangeDateStartActivePromoCodeResponse, error) {
+	if !CheckName(in.Name) {
+		return nil, status.Error(codes.InvalidArgument, "incorrect name")
+	}
+	layout := "2006-01-02"
+	timeStart, err := time.Parse(layout, in.GetDateStartActive())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "incorrect date")
+	}
+
+	result, err := s.loyalty.ChangeDateStartActivePromoCode(ctx, in.GetName(), timeStart.String())
+	if err != nil {
+		if errors.Is(err, Storage.ErrPromoCodeExists) {
+			return nil, status.Error(codes.NotFound, "promo code not found")
+		}
+		return nil, status.Error(codes.Internal, "incorrect date")
+	}
+	return &sl.ChangeDateStartActivePromoCodeResponse{Result: result}, nil
+}
+func (s *ServerAPI) ChangeDateFinishActivePromoCode(ctx context.Context,
+	in *sl.ChangeDateFinishActivePromoCodeRequest) (*sl.ChangeDateFinishActivePromoCodeResponse, error) {
+	if !CheckName(in.Name) {
+		return nil, status.Error(codes.InvalidArgument, "incorrect name")
+	}
+	layout := "2006-01-02"
+	timeFinish, err := time.Parse(layout, in.GetDateFinishActive())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "incorrect date")
+	}
+	result, err := s.loyalty.ChangeDateFinishActivePromoCode(ctx, in.GetName(), timeFinish.String())
+	if err != nil {
+		if errors.Is(err, Storage.ErrPromoCodeExists) {
+			return nil, status.Error(codes.NotFound, "promo code not found")
+		}
+		return nil, status.Error(codes.Internal, "incorrect date")
+	}
+	return &sl.ChangeDateFinishActivePromoCodeResponse{Result: result}, nil
+}
+func (s *ServerAPI) ChangeMaxCountUsesPromoCode(ctx context.Context,
+	in *sl.ChangeMaxCountUsesPromoCodeRequest) (*sl.ChangeMaxCountUsesPromoCodeResponse, error) {
+	if !CheckName(in.Name) {
+		return nil, status.Error(codes.InvalidArgument, "incorrect name")
+	}
+	if in.GetMaxCountUses() <= 0 {
+		return nil, status.Error(codes.InvalidArgument, "incorrect value")
+	}
+	result, err := s.loyalty.ChangeMaxCountUsesPromoCode(ctx, in.GetName(), in.GetMaxCountUses())
+	if err != nil {
+		if errors.Is(err, Storage.ErrPromoCodeExists) {
+			return nil, status.Error(codes.NotFound, "promo code not found")
+		}
+		return nil, status.Error(codes.Internal, "incorrect value")
+	}
+	return &sl.ChangeMaxCountUsesPromoCodeResponse{Result: result}, nil
+}
 func (s *ServerAPI) DeletePromoCode(ctx context.Context,
 	in *sl.DeletePromoCodeRequest) (*sl.DeletePromoCodeResponse, error) {
-	if !CheckName(in.Name) {
+	if !CheckName(in.GetName()) {
 		return nil, status.Error(codes.InvalidArgument, "incorrect name")
 	}
 	result, err := s.loyalty.DeletePromoCode(ctx, in.GetName())

@@ -26,6 +26,205 @@ func New(storagePath string) (*Storage, error) {
 
 	return &Storage{db: db}, nil
 }
+func (s *Storage) ChangeNamePromoCode(ctx context.Context, name string, newName string) (string, error) {
+	const op = "Storage.SQLite.ChangeNamePromoCode"
+
+	err := s.CheckContain(ctx, name)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	stmt, err := s.db.Prepare("UPDATE PromoCodes SET Name = ? WHERE Name = ?")
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	// Выполняем запрос, передав параметры
+	_, err = stmt.ExecContext(ctx, newName, name)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	return "complete", nil
+}
+func (s *Storage) ChangeTypeDiscountPromoCode(ctx context.Context, name string, typeDiscount int32) (string, error) {
+	const op = "Storage.SQLite.ChangeTypeDiscountPromoCode"
+
+	err := s.CheckContain(ctx, name)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	statement, err := s.db.Prepare(`SELECT ValueDiscount FROM PromoCodes WHERE Name = ?`)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	res := statement.QueryRow(name)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	var valueDiscount int
+	err = res.Scan(&valueDiscount)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	if valueDiscount > 100 && typeDiscount == 1 {
+		return "", fmt.Errorf("%s: %w", op, st.ErrTypeDiscount)
+	}
+
+	stmt, err := s.db.Prepare("UPDATE PromoCodes SET TypeDiscountFK = ? WHERE Name = ?")
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	// Выполняем запрос, передав параметры
+	_, err = stmt.ExecContext(ctx, typeDiscount, name)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	return "complete", nil
+}
+func (s *Storage) ChangeValueDiscountPromoCode(ctx context.Context, name string, valueDiscount int32) (string, error) {
+	const op = "Storage.SQLite.ChangeValueDiscountPromoCode"
+
+	err := s.CheckContain(ctx, name)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	statement, err := s.db.Prepare(`SELECT TypeDiscountFK FROM PromoCodes WHERE Name = ?`)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	res := statement.QueryRow(name)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	var typeDiscount int
+	err = res.Scan(&typeDiscount)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	if typeDiscount == 1 && valueDiscount > 100 {
+		return "", fmt.Errorf("%s: %w", op, st.ErrTypeDiscount)
+	}
+
+	stmt, err := s.db.Prepare("UPDATE PromoCodes SET ValueDiscount = ? WHERE Name = ?")
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	// Выполняем запрос, передав параметры
+	_, err = stmt.ExecContext(ctx, valueDiscount, name)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	return "complete", nil
+}
+func (s *Storage) ChangeDateStartActivePromoCode(ctx context.Context, name string, dateStartActive string) (string, error) {
+	const op = "Storage.SQLite.ChangeDateStartActivePromoCode"
+
+	err := s.CheckContain(ctx, name)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	statement, err := s.db.Prepare(`SELECT DateFinishActive FROM PromoCodes WHERE Name = ?`)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	res := statement.QueryRow(name)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	var dateFinishActive string
+	err = res.Scan(&dateFinishActive)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	if dateStartActive > dateFinishActive {
+		return "", fmt.Errorf("%s: %w", op, st.ErrDateActive)
+	}
+
+	stmt, err := s.db.Prepare("UPDATE PromoCodes SET DateStartActive = ? WHERE Name = ?")
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	// Выполняем запрос, передав параметры
+	_, err = stmt.ExecContext(ctx, dateStartActive, name)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	return "complete", nil
+}
+func (s *Storage) ChangeDateFinishActivePromoCode(ctx context.Context, name string, dateFinishActive string) (string, error) {
+	const op = "Storage.SQLite.ChangeDateFinishActivePromoCode"
+
+	err := s.CheckContain(ctx, name)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	statement, err := s.db.Prepare(`SELECT DateStartActive FROM PromoCodes WHERE Name = ?`)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	res := statement.QueryRow(name)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	var dateStartActive string
+	err = res.Scan(&dateStartActive)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	if dateFinishActive < dateStartActive {
+		return "", fmt.Errorf("%s: %w", op, st.ErrDateActive)
+	}
+
+	stmt, err := s.db.Prepare("UPDATE PromoCodes SET DateFinishActive = ? WHERE Name = ?")
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	// Выполняем запрос, передав параметры
+	_, err = stmt.ExecContext(ctx, dateFinishActive, name)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	return "complete", nil
+}
+func (s *Storage) ChangeMaxCountUsesPromoCode(ctx context.Context, name string, maxCountUses int32) (string, error) {
+	const op = "Storage.SQLite.ChangeMaxCountUsesPromoCode"
+
+	err := s.CheckContain(ctx, name)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	stmt, err := s.db.Prepare("UPDATE PromoCodes SET MaxCountUses = ? WHERE Name = ?")
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	// Выполняем запрос, передав параметры
+	_, err = stmt.ExecContext(ctx, maxCountUses, name)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	return "complete", nil
+}
 
 func (s *Storage) SavePromoCode(ctx context.Context, name string, typeDiscount int32,
 	valueDiscount int32, dateStartActive string,

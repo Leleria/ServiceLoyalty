@@ -15,6 +15,12 @@ type PromoCodeChanger interface {
 		result string, err error)
 	//PromoCode(ctx context.Context, name string) (Models.PromoCode, error)
 	DeletePromoCode(ctx context.Context, name string) (result string, err error)
+	ChangeNamePromoCode(ctx context.Context, name string, newName string) (result string, err error)
+	ChangeTypeDiscountPromoCode(ctx context.Context, name string, typeDiscount int32) (result string, err error)
+	ChangeValueDiscountPromoCode(ctx context.Context, name string, valueDiscount int32) (result string, err error)
+	ChangeDateStartActivePromoCode(ctx context.Context, name string, dateStartActive string) (result string, err error)
+	ChangeDateFinishActivePromoCode(ctx context.Context, name string, dateFinish string) (result string, err error)
+	ChangeMaxCountUsesPromoCode(ctx context.Context, name string, maxCountUses int32) (result string, err error)
 }
 
 type Loyalty struct {
@@ -27,6 +33,97 @@ func New(log *slog.Logger,
 	return &Loyalty{log: log,
 		promoCodeChanger: promoCodeChanger,
 	}
+}
+
+func (l *Loyalty) ChangeNamePromoCode(ctx context.Context, name string, newName string) (result string, err error) {
+	const op = "Loyalty.ChangeNamePromoCode"
+	log := l.log.With(
+		slog.String("op", op),
+		slog.String("name", name),
+	)
+
+	result, err = l.promoCodeChanger.ChangeNamePromoCode(ctx, name, newName)
+	if err != nil {
+		log.Error("failed to change name promo code", Sl.Err(err))
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	log.Info("changed name promo code " + "\"" + name + "\"" + " --> " + "\"" + newName + "\"")
+	return result, nil
+}
+func (l *Loyalty) ChangeTypeDiscountPromoCode(ctx context.Context, name string, typeDiscount int32) (result string, err error) {
+	const op = "Loyalty.ChangeTypeDiscountPromoCode"
+	log := l.log.With(
+		slog.String("op", op),
+		slog.String("name", name),
+	)
+
+	result, err = l.promoCodeChanger.ChangeTypeDiscountPromoCode(ctx, name, typeDiscount)
+	if err != nil {
+		log.Error("failed to change type discount promo code", Sl.Err(err))
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	log.Info("changed type discount promo code ")
+	return result, nil
+}
+func (l *Loyalty) ChangeDateStartActivePromoCode(ctx context.Context, name string, dateStartActive string) (result string, err error) {
+	const op = "Loyalty.ChangeDateStartActivePromoCode"
+	log := l.log.With(
+		slog.String("op", op),
+		slog.String("name", name),
+	)
+
+	result, err = l.promoCodeChanger.ChangeDateStartActivePromoCode(ctx, name, dateStartActive)
+	if err != nil {
+		log.Error("failed to delete promo code", Sl.Err(err))
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	log.Info("changed date start activation promo code ")
+	return result, nil
+}
+func (l *Loyalty) ChangeDateFinishActivePromoCode(ctx context.Context, name string, dateFinishActive string) (result string, err error) {
+	const op = "Loyalty.ChangeDateFinishPromoCode"
+	log := l.log.With(
+		slog.String("op", op),
+		slog.String("name", name),
+	)
+
+	result, err = l.promoCodeChanger.ChangeDateFinishActivePromoCode(ctx, name, dateFinishActive)
+	if err != nil {
+		log.Error("failed to delete promo code", Sl.Err(err))
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	log.Info("changed date finish activation promo code ")
+	return result, nil
+}
+func (l *Loyalty) ChangeMaxCountUsesPromoCode(ctx context.Context, name string, maxCountUses int32) (result string, err error) {
+	const op = "Loyalty.ChangeMaxCountUsesPromoCode"
+	log := l.log.With(
+		slog.String("op", op),
+		slog.String("name", name),
+	)
+
+	result, err = l.promoCodeChanger.ChangeMaxCountUsesPromoCode(ctx, name, maxCountUses)
+	if err != nil {
+		log.Error("failed to delete promo code", Sl.Err(err))
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	log.Info("changed max count uses promo code ")
+	return result, nil
+}
+func (l *Loyalty) ChangeValueDiscountPromoCode(ctx context.Context, name string, valueDiscount int32) (result string, err error) {
+	const op = "Loyalty.ChangeValueDiscountPromoCode"
+	log := l.log.With(
+		slog.String("op", op),
+		slog.String("name", name),
+	)
+
+	result, err = l.promoCodeChanger.ChangeValueDiscountPromoCode(ctx, name, valueDiscount)
+	if err != nil {
+		log.Error("failed to delete promo code", Sl.Err(err))
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	log.Info("changed value discount promo code ")
+	return result, nil
 }
 func (l *Loyalty) DeletePromoCode(ctx context.Context, name string) (result string, err error) {
 	const op = "Loyalty.DeletePromoCode"
