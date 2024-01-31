@@ -6,6 +6,19 @@ CREATE TABLE IF NOT EXISTS TypesOfGroups (
     Id	               INTEGER PRIMARY KEY,
     NameType	       TEXT	NOT NULL
 );
+CREATE TABLE IF NOT EXISTS CashBackTypes (
+    Id	               INTEGER PRIMARY KEY,
+    NameType	       TEXT	NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS CashBack (
+    Id	               INTEGER PRIMARY KEY,
+    Budget	           INTEGER	NOT NULL,
+    TypeCashBackFK	   INTEGER	NOT NULL,
+    ValueCondition	       TEXT	NOT NULL,
+    FOREIGN KEY(TypeCashBackFK) REFERENCES CashBackTypes(Id)
+);
+
 CREATE TABLE IF NOT EXISTS LoyaltyLevels (
     Id	               INTEGER PRIMARY KEY,
     NameLevel	       TEXT	NOT NULL,

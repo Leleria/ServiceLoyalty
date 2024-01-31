@@ -24,6 +24,8 @@ type PromoCodeChanger interface {
 	ChangeDateStartActivePromoCode(ctx context.Context, name string, dateStartActive string) (result string, err error)
 	ChangeDateFinishActivePromoCode(ctx context.Context, name string, dateFinish string) (result string, err error)
 	ChangeMaxCountUsesPromoCode(ctx context.Context, name string, maxCountUses int32) (result string, err error)
+
+	SaveSettingUpBudget(ctx context.Context, typeCashBack int32, condition string, valueBudget int32) (result string, err error)
 }
 
 type Loyalty struct {
@@ -201,6 +203,21 @@ func (l *Loyalty) AddPersonalPromoCode(ctx context.Context, idClient int32, idGr
 	result, err := l.promoCodeChanger.SavePersonalPromoCode(ctx, idClient, idGroup, IdPromoCode)
 	if err != nil {
 		log.Error("failed to save personal promo code", Sl.Err(err))
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	return result, nil
+}
+
+func (l *Loyalty) SettingUpBudget(ctx context.Context, typeCashBack int32, condition string, valueBudget int32) (string, error) {
+	const op = "Loyalty.SettingUpBudget"
+	log := l.log.With(
+		slog.String("op", op),
+	)
+	log.Info("setting up a budget")
+
+	result, err := l.promoCodeChanger.SaveSettingUpBudget(ctx, typeCashBack, condition, valueBudget)
+	if err != nil {
+		log.Error("failed to setting up a budget", Sl.Err(err))
 		return "", fmt.Errorf("%s: %w", op, err)
 	}
 	return result, nil

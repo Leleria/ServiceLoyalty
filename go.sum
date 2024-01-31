@@ -10,6 +10,10 @@ github.com/Leleria/Contract v0.0.11 h1:rLJvtK898G9oWbb7fepq4E9iz5Y6A8mISVH2HHl1r
 github.com/Leleria/Contract v0.0.11/go.mod h1:2jZsYCglUMeiTqQ/QzM7HFavtFYydB1WoNrCLqoJIsc=
 github.com/Leleria/Contract v0.0.12 h1:83Qf4BAXgeT2sIeMFStaBMOL9UEa+TIdTxN9liHhLtI=
 github.com/Leleria/Contract v0.0.12/go.mod h1:2jZsYCglUMeiTqQ/QzM7HFavtFYydB1WoNrCLqoJIsc=
+github.com/Leleria/Contract v0.0.13 h1:r1+63UIpK5VURas3maqDLo8f5p+5mugV8vVpCMkMK/U=
+github.com/Leleria/Contract v0.0.13/go.mod h1:2jZsYCglUMeiTqQ/QzM7HFavtFYydB1WoNrCLqoJIsc=
+github.com/Leleria/Contract v0.0.14 h1:2aHN0gsq80bXvKGPJcxF4BOpEO/mOBs78Wd+gnEWAow=
+github.com/Leleria/Contract v0.0.14/go.mod h1:2jZsYCglUMeiTqQ/QzM7HFavtFYydB1WoNrCLqoJIsc=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=

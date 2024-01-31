@@ -232,20 +232,16 @@ func (s *Storage) SavePromoCode(ctx context.Context, name string, typeDiscount i
 	dateFinishActive string, maxCountUses int32) (string, error) {
 	const op = "Storage.SQLite.SavePromoCode"
 
-	// Простой запрос на добавление пользователя
 	stmt, err := s.db.Prepare("INSERT INTO PromoCodes(Name, TypeDiscountFK, " +
 		"ValueDiscount, DateStartActive, DateFinishActive, MaxCountUses) VALUES(?, ?, ?, ?, ?, ?)")
 	if err != nil {
 		return "", fmt.Errorf("%s: %w", op, err)
 	}
 
-	// Выполняем запрос, передав параметры
 	_, err = stmt.ExecContext(ctx, name, typeDiscount, valueDiscount, dateStartActive, dateFinishActive, maxCountUses)
 	if err != nil {
 		var sqliteErr sqlite3.Error
 
-		// Небольшое кунг-фу для выявления ошибки ErrConstraintUnique
-		// (см. подробности ниже)
 		if errors.As(err, &sqliteErr) && sqliteErr.ExtendedCode == sqlite3.ErrConstraintUnique {
 			return "", fmt.Errorf("%s: %w", op, st.ErrPromoCodeExists)
 		}
@@ -311,6 +307,33 @@ func (s *Storage) SavePersonalPromoCode(ctx context.Context, idClient int32, idG
 		return "", fmt.Errorf("%s: %w", op, err)
 	}
 
+	return "complete", nil
+}
+
+func (s *Storage) SaveSettingUpBudget(ctx context.Context, typeCashBack int32, condition string, valueBudget int32) (string, error) {
+	const op = "Storage.SQLite.SaveSettingUpBudget"
+
+	err := s.CheckContainCashBackType(ctx, typeCashBack)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	stmt, err := s.db.Prepare("INSERT INTO CashBack(TypeCashBackFK, ValueCondition, Budget) VALUES(?, ?, ?)")
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	// Выполняем запрос, передав параметры
+	_, err = stmt.ExecContext(ctx, typeCashBack, condition, valueBudget)
+	if err != nil {
+		var sqliteErr sqlite3.Error
+
+		if errors.As(err, &sqliteErr) && sqliteErr.ExtendedCode == sqlite3.ErrConstraintUnique {
+			return "", fmt.Errorf("%s: %w", op, st.ErrPromoCodeExists)
+		}
+
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
 	return "complete", nil
 }
 
@@ -401,7 +424,7 @@ func (s *Storage) GetAllPromoCodes(ctx context.Context) (string, error) {
 }
 
 func (s *Storage) CheckContainPromoCode(ctx context.Context, elementForSearch string) error {
-	const op = "Storage.SQLite.CheckContain"
+	const op = "Storage.SQLite.CheckContainPromoCode"
 	statement, err := s.db.Prepare("SELECT Name FROM PromoCodes WHERE Name = ?")
 	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)
@@ -441,6 +464,25 @@ func (s *Storage) CheckContainClient(ctx context.Context, elementForSearch int32
 func (s *Storage) CheckContainGroup(ctx context.Context, elementForSearch int32) error {
 	const op = "Storage.SQLite.CheckContainGroup"
 	statement, err := s.db.Prepare("SELECT Id FROM TypesOfGroups WHERE Id = ?")
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	res := statement.QueryRowContext(ctx, elementForSearch)
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+	var dataFromDB int32
+	err = res.Scan(&dataFromDB)
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+	return nil
+}
+
+func (s *Storage) CheckContainCashBackType(ctx context.Context, elementForSearch int32) error {
+	const op = "Storage.SQLite.CheckContainCashBackType"
+	statement, err := s.db.Prepare("SELECT Id FROM CashBackTypes WHERE Id = ?")
 	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)
 	}

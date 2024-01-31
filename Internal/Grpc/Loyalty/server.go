@@ -36,8 +36,25 @@ type Loyalty interface {
 	ChangeDateStartActivePromoCode(ctx context.Context, name string, dateStartActive string) (result string, err error)
 	ChangeDateFinishActivePromoCode(ctx context.Context, name string, dateFinish string) (result string, err error)
 	ChangeMaxCountUsesPromoCode(ctx context.Context, name string, maxCountUses int32) (result string, err error)
-
 	AddPersonalPromoCode(ctx context.Context, idClient int32, idGroup int32, namePromoCode string) (result string, err error)
+
+	SettingUpBudget(ctx context.Context, typeCashBack int32, condition string, valueBudget int32) (result string, err error)
+}
+
+func (s *ServerAPI) SettingUpBudget(ctx context.Context,
+	in *sl.SettingUpBudgetRequest) (*sl.SettingUpBudgetResponse, error) {
+
+	if CheckArgsForSettingUpBudget(in) {
+		return nil, status.Error(codes.InvalidArgument, "incorrect data")
+	}
+	result, err := s.loyalty.SettingUpBudget(ctx, in.GetTypeCashBack(), in.GetCondition(), in.GetValueBudget())
+	if err != nil {
+		if errors.Is(err, Storage.ErrPromoCodeExists) {
+			return nil, status.Error(codes.AlreadyExists, "cashback exists")
+		}
+		return nil, status.Error(codes.Internal, "incorrect data")
+	}
+	return &sl.SettingUpBudgetResponse{Result: result}, nil
 }
 
 func (s *ServerAPI) AddPersonalPromoCode(ctx context.Context,
@@ -270,6 +287,16 @@ func CheckArgsForAddedPersonalPromoCodeToDB(request *sl.AddPersonalPromoCodeRequ
 		return true
 	}
 	if request.IdGroup <= 0 {
+		return true
+	}
+	return false
+} //true its error
+
+func CheckArgsForSettingUpBudget(request *sl.SettingUpBudgetRequest) bool {
+	if request.ValueBudget <= 0 {
+		return true
+	}
+	if request.TypeCashBack <= 0 {
 		return true
 	}
 	return false
