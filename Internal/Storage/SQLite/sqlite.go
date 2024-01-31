@@ -8,6 +8,7 @@ import (
 	"github.com/Leleria/ServiceLoyalty/Internal/Domain/Models"
 	st "github.com/Leleria/ServiceLoyalty/Internal/Storage"
 	"github.com/mattn/go-sqlite3"
+	"strconv"
 )
 
 type Storage struct {
@@ -29,7 +30,7 @@ func New(storagePath string) (*Storage, error) {
 func (s *Storage) ChangeNamePromoCode(ctx context.Context, name string, newName string) (string, error) {
 	const op = "Storage.SQLite.ChangeNamePromoCode"
 
-	err := s.CheckContain(ctx, name)
+	err := s.CheckContainPromoCode(ctx, name)
 	if err != nil {
 		return "", fmt.Errorf("%s: %w", op, err)
 	}
@@ -50,7 +51,7 @@ func (s *Storage) ChangeNamePromoCode(ctx context.Context, name string, newName 
 func (s *Storage) ChangeTypeDiscountPromoCode(ctx context.Context, name string, typeDiscount int32) (string, error) {
 	const op = "Storage.SQLite.ChangeTypeDiscountPromoCode"
 
-	err := s.CheckContain(ctx, name)
+	err := s.CheckContainPromoCode(ctx, name)
 	if err != nil {
 		return "", fmt.Errorf("%s: %w", op, err)
 	}
@@ -90,7 +91,7 @@ func (s *Storage) ChangeTypeDiscountPromoCode(ctx context.Context, name string, 
 func (s *Storage) ChangeValueDiscountPromoCode(ctx context.Context, name string, valueDiscount int32) (string, error) {
 	const op = "Storage.SQLite.ChangeValueDiscountPromoCode"
 
-	err := s.CheckContain(ctx, name)
+	err := s.CheckContainPromoCode(ctx, name)
 	if err != nil {
 		return "", fmt.Errorf("%s: %w", op, err)
 	}
@@ -129,7 +130,7 @@ func (s *Storage) ChangeValueDiscountPromoCode(ctx context.Context, name string,
 func (s *Storage) ChangeDateStartActivePromoCode(ctx context.Context, name string, dateStartActive string) (string, error) {
 	const op = "Storage.SQLite.ChangeDateStartActivePromoCode"
 
-	err := s.CheckContain(ctx, name)
+	err := s.CheckContainPromoCode(ctx, name)
 	if err != nil {
 		return "", fmt.Errorf("%s: %w", op, err)
 	}
@@ -168,7 +169,7 @@ func (s *Storage) ChangeDateStartActivePromoCode(ctx context.Context, name strin
 func (s *Storage) ChangeDateFinishActivePromoCode(ctx context.Context, name string, dateFinishActive string) (string, error) {
 	const op = "Storage.SQLite.ChangeDateFinishActivePromoCode"
 
-	err := s.CheckContain(ctx, name)
+	err := s.CheckContainPromoCode(ctx, name)
 	if err != nil {
 		return "", fmt.Errorf("%s: %w", op, err)
 	}
@@ -207,7 +208,7 @@ func (s *Storage) ChangeDateFinishActivePromoCode(ctx context.Context, name stri
 func (s *Storage) ChangeMaxCountUsesPromoCode(ctx context.Context, name string, maxCountUses int32) (string, error) {
 	const op = "Storage.SQLite.ChangeMaxCountUsesPromoCode"
 
-	err := s.CheckContain(ctx, name)
+	err := s.CheckContainPromoCode(ctx, name)
 	if err != nil {
 		return "", fmt.Errorf("%s: %w", op, err)
 	}
@@ -255,10 +256,68 @@ func (s *Storage) SavePromoCode(ctx context.Context, name string, typeDiscount i
 	return "complete", nil
 }
 
+func (s *Storage) SavePersonalPromoCode(ctx context.Context, idClient int32, idGroup int32,
+	namePromoCode string) (string, error) {
+	const op = "Storage.SQLite.SavePersonalPromoCode"
+
+	err := s.CheckContainClient(ctx, idClient)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	err = s.CheckContainGroup(ctx, idGroup)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	err = s.CheckContainPromoCode(ctx, namePromoCode)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	stmt, err := s.db.Prepare("SELECT Id FROM PromoCodes WHERE Name = ?")
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	row := stmt.QueryRowContext(ctx, namePromoCode)
+
+	var promoCode Models.PromoCode
+	err = row.Scan(&promoCode.Id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", fmt.Errorf("%s: %w", op, st.ErrPromoCodeFound)
+		}
+
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	result := strconv.Itoa(int(promoCode.Id))
+
+	stmt, err = s.db.Prepare("INSERT INTO PersonalPromoCodes(ClientFK, GroupFK, PromoCodeFK) VALUES(?, ?, ?)")
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	// Выполняем запрос, передав параметры
+	_, err = stmt.ExecContext(ctx, idClient, idGroup, result)
+	if err != nil {
+		var sqliteErr sqlite3.Error
+
+		if errors.As(err, &sqliteErr) && sqliteErr.ExtendedCode == sqlite3.ErrConstraintUnique {
+			return "", fmt.Errorf("%s: %w", op, st.ErrPromoCodeExists)
+		}
+
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	return "complete", nil
+}
+
 func (s *Storage) DeletePromoCode(ctx context.Context, name string) (string, error) {
 	const op = "Storage.SQLite.DeletePromoCode"
 
-	err := s.CheckContain(ctx, name)
+	err := s.CheckContainPromoCode(ctx, name)
 	if err != nil {
 		return "", fmt.Errorf("%s: %w", op, err)
 	}
@@ -277,13 +336,17 @@ func (s *Storage) DeletePromoCode(ctx context.Context, name string) (string, err
 	return "complete", nil
 }
 
-func (s *Storage) PromoCode(ctx context.Context, name string) (Models.PromoCode, error) {
-	const op = "Storage.Sqlite.PromoCode"
+func (s *Storage) GetPromoCode(ctx context.Context, name string) (string, error) {
+	const op = "Storage.Sqlite.GetPromoCode"
 
+	err := s.CheckContainPromoCode(ctx, name)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
 	stmt, err := s.db.Prepare("SELECT TypeDiscountFK, ValueDiscount, DateStartActive, DateFinishActive" +
 		", MaxCountUses FROM PromoCodes WHERE name = ?")
 	if err != nil {
-		return Models.PromoCode{}, fmt.Errorf("%s: %w", op, err)
+		return "", fmt.Errorf("%s: %w", op, err)
 	}
 
 	row := stmt.QueryRowContext(ctx, name)
@@ -293,16 +356,51 @@ func (s *Storage) PromoCode(ctx context.Context, name string) (Models.PromoCode,
 		&promoCode.DateFinishActive, &promoCode.MaxCountUses)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return Models.PromoCode{}, fmt.Errorf("%s: %w", op, st.ErrPromoCodeFound)
+			return "", fmt.Errorf("%s: %w", op, st.ErrPromoCodeFound)
 		}
 
-		return Models.PromoCode{}, fmt.Errorf("%s: %w", op, err)
+		return "", fmt.Errorf("%s: %w", op, err)
 	}
 
-	return promoCode, nil
+	result := strconv.Itoa(int(promoCode.TypeDiscount)) + " " + strconv.Itoa(int(promoCode.ValueDiscount)) + " " + promoCode.DateStartActive +
+		" " + promoCode.DateFinishActive + " " + strconv.Itoa(int(promoCode.MaxCountUses))
+	return result, nil
 }
 
-func (s *Storage) CheckContain(ctx context.Context, elementForSearch string) error {
+func (s *Storage) GetAllPromoCodes(ctx context.Context) (string, error) {
+	const op = "Storage.Sqlite.GetAllPromoCodes"
+
+	stmt, err := s.db.Prepare("SELECT Name, TypeDiscountFK, ValueDiscount, DateStartActive, DateFinishActive" +
+		", MaxCountUses FROM PromoCodes")
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	row, err := stmt.QueryContext(ctx)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	var result string
+	for row.Next() {
+		var promoCode Models.PromoCode
+		err := row.Scan(&promoCode.Name, &promoCode.TypeDiscount, &promoCode.ValueDiscount, &promoCode.DateStartActive,
+			&promoCode.DateFinishActive, &promoCode.MaxCountUses)
+
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return "", fmt.Errorf("%s: %w", op, st.ErrPromoCodeFound)
+			}
+			return "", fmt.Errorf("%s: %w", op, err)
+		}
+
+		result = result + promoCode.Name + " " + strconv.Itoa(int(promoCode.TypeDiscount)) + " " + strconv.Itoa(int(promoCode.ValueDiscount)) + " " + promoCode.DateStartActive +
+			" " + promoCode.DateFinishActive + " " + strconv.Itoa(int(promoCode.MaxCountUses)) + ", "
+	}
+
+	return result, nil
+}
+
+func (s *Storage) CheckContainPromoCode(ctx context.Context, elementForSearch string) error {
 	const op = "Storage.SQLite.CheckContain"
 	statement, err := s.db.Prepare("SELECT Name FROM PromoCodes WHERE Name = ?")
 	if err != nil {
@@ -314,6 +412,44 @@ func (s *Storage) CheckContain(ctx context.Context, elementForSearch string) err
 		return fmt.Errorf("%s: %w", op, err)
 	}
 	var dataFromDB string
+	err = res.Scan(&dataFromDB)
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+	return nil
+}
+
+func (s *Storage) CheckContainClient(ctx context.Context, elementForSearch int32) error {
+	const op = "Storage.SQLite.CheckContainClient"
+	statement, err := s.db.Prepare("SELECT Id FROM Clients WHERE Id = ?")
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	res := statement.QueryRowContext(ctx, elementForSearch)
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+	var dataFromDB int32
+	err = res.Scan(&dataFromDB)
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+	return nil
+}
+
+func (s *Storage) CheckContainGroup(ctx context.Context, elementForSearch int32) error {
+	const op = "Storage.SQLite.CheckContainGroup"
+	statement, err := s.db.Prepare("SELECT Id FROM TypesOfGroups WHERE Id = ?")
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	res := statement.QueryRowContext(ctx, elementForSearch)
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+	var dataFromDB int32
 	err = res.Scan(&dataFromDB)
 	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)

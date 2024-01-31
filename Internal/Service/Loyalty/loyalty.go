@@ -8,12 +8,15 @@ import (
 )
 
 type PromoCodeChanger interface {
+	SavePersonalPromoCode(ctx context.Context, idClient int32, idGroup int32,
+		IdPromoCode string) (result string, err error)
 	SavePromoCode(ctx context.Context,
 		name string, typeDiscount int32,
 		valueDiscount int32, dateStartActive string,
 		dateFinishActive string, maxCountUses int32) (
 		result string, err error)
-	//PromoCode(ctx context.Context, name string) (Models.PromoCode, error)
+	GetPromoCode(ctx context.Context, name string) (string, error)
+	GetAllPromoCodes(ctx context.Context) (string, error)
 	DeletePromoCode(ctx context.Context, name string) (result string, err error)
 	ChangeNamePromoCode(ctx context.Context, name string, newName string) (result string, err error)
 	ChangeTypeDiscountPromoCode(ctx context.Context, name string, typeDiscount int32) (result string, err error)
@@ -33,6 +36,35 @@ func New(log *slog.Logger,
 	return &Loyalty{log: log,
 		promoCodeChanger: promoCodeChanger,
 	}
+}
+
+func (l *Loyalty) GetPromoCode(ctx context.Context, name string) (result string, err error) {
+	const op = "Loyalty.GetPromoCode"
+	log := l.log.With(
+		slog.String("op", op),
+		slog.String("name", name),
+	)
+	result, err = l.promoCodeChanger.GetPromoCode(ctx, name)
+	if err != nil {
+		log.Error("failed to get promo code", Sl.Err(err))
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	log.Info("received promo code " + "\"" + name + "\"")
+	return result, nil
+}
+
+func (l *Loyalty) GetAllPromoCodes(ctx context.Context) (result string, err error) {
+	const op = "Loyalty.GetAllPromoCodes"
+	log := l.log.With(
+		slog.String("op", op),
+	)
+	result, err = l.promoCodeChanger.GetAllPromoCodes(ctx)
+	if err != nil {
+		log.Error("failed to get all promo codes", Sl.Err(err))
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	log.Info("received all promo codes " + "\"")
+	return result, nil
 }
 
 func (l *Loyalty) ChangeNamePromoCode(ctx context.Context, name string, newName string) (result string, err error) {
@@ -153,6 +185,22 @@ func (l *Loyalty) AddNewPromoCode(ctx context.Context, name string, typeDiscount
 		dateStartActive, dateFinishActive, maxCountUses)
 	if err != nil {
 		log.Error("failed to save promo code", Sl.Err(err))
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	return result, nil
+}
+
+func (l *Loyalty) AddPersonalPromoCode(ctx context.Context, idClient int32, idGroup int32,
+	IdPromoCode string) (string, error) {
+	const op = "Loyalty.AddPersonalPromoCode"
+	log := l.log.With(
+		slog.String("op", op),
+	)
+	log.Info("added personal promo code")
+
+	result, err := l.promoCodeChanger.SavePersonalPromoCode(ctx, idClient, idGroup, IdPromoCode)
+	if err != nil {
+		log.Error("failed to save personal promo code", Sl.Err(err))
 		return "", fmt.Errorf("%s: %w", op, err)
 	}
 	return result, nil

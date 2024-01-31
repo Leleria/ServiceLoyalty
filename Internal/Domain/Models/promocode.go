@@ -1,6 +1,7 @@
 package Models
 
 type PromoCode struct {
+	Id               int32
 	Name             string
 	TypeDiscount     int32
 	ValueDiscount    int32

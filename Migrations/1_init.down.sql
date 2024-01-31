@@ -1,1 +1,2 @@
 DROP TABLE IF EXISTS PromoCodes;
+DROP TABLE IF EXISTS TypesOfDiscounts;
