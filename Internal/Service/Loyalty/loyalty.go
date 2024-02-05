@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/Leleria/ServiceLoyalty/Internal/Lib/Logger/Sl"
 	"log/slog"
+	"strconv"
 )
 
 type PromoCodeChanger interface {
@@ -26,6 +27,12 @@ type PromoCodeChanger interface {
 	ChangeMaxCountUsesPromoCode(ctx context.Context, name string, maxCountUses int32) (result string, err error)
 
 	SaveSettingUpBudget(ctx context.Context, typeCashBack int32, condition string, valueBudget int32) (result string, err error)
+	ChangeBudgetCashBack(ctx context.Context, idCashBack int32, budget int32) (result string, err error)
+	ChangeTypeCashBack(ctx context.Context, idCashBack int32, typeCashBack int32) (result string, err error)
+	ChangeConditionCashBack(ctx context.Context, idCashBack int32, condition string) (result string, err error)
+	GetCashBack(ctx context.Context, idCashBack int32) (result string, err error)
+	GetAllCashBack(ctx context.Context) (result string, err error)
+	DeleteCashBack(ctx context.Context, idCashBack int32) (result string, err error)
 }
 
 type Loyalty struct {
@@ -38,6 +45,21 @@ func New(log *slog.Logger,
 	return &Loyalty{log: log,
 		promoCodeChanger: promoCodeChanger,
 	}
+}
+
+func (l *Loyalty) DeleteCashBack(ctx context.Context, idCashBack int32) (result string, err error) {
+	const op = "Loyalty.DeleteCashBack"
+	log := l.log.With(
+		slog.String("op", op),
+		slog.String("id", strconv.Itoa(int(idCashBack))),
+	)
+	log.Info("deleted " + "\"" + strconv.Itoa(int(idCashBack)) + "\"" + " cashback")
+	result, err = l.promoCodeChanger.DeleteCashBack(ctx, idCashBack)
+	if err != nil {
+		log.Error("failed to delete cashback", Sl.Err(err))
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	return result, nil
 }
 
 func (l *Loyalty) GetPromoCode(ctx context.Context, name string) (result string, err error) {
@@ -220,5 +242,82 @@ func (l *Loyalty) SettingUpBudget(ctx context.Context, typeCashBack int32, condi
 		log.Error("failed to setting up a budget", Sl.Err(err))
 		return "", fmt.Errorf("%s: %w", op, err)
 	}
+	return result, nil
+}
+
+func (l *Loyalty) GetCashBack(ctx context.Context, idCashBack int32) (result string, err error) {
+	const op = "Loyalty.GetCashBack"
+	log := l.log.With(
+		slog.String("op", op),
+		slog.String("id", strconv.Itoa(int(idCashBack))),
+	)
+	result, err = l.promoCodeChanger.GetCashBack(ctx, idCashBack)
+	if err != nil {
+		log.Error("failed to get cashback", Sl.Err(err))
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	log.Info("received cashback " + "\"" + strconv.Itoa(int(idCashBack)) + "\"")
+	return result, nil
+}
+
+func (l *Loyalty) GetAllCashBack(ctx context.Context) (result string, err error) {
+	const op = "Loyalty.GetAllCashBack"
+	log := l.log.With(
+		slog.String("op", op),
+	)
+	result, err = l.promoCodeChanger.GetAllCashBack(ctx)
+	if err != nil {
+		log.Error("failed to get all cashbacks", Sl.Err(err))
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	log.Info("received all cashbacks " + "\"")
+	return result, nil
+}
+
+func (l *Loyalty) ChangeBudgetCashBack(ctx context.Context, idCashBack int32, budget int32) (result string, err error) {
+	const op = "Loyalty.ChangeBudgetCashBack"
+	log := l.log.With(
+		slog.String("op", op),
+		slog.String("id", strconv.Itoa(int(idCashBack))),
+	)
+
+	result, err = l.promoCodeChanger.ChangeBudgetCashBack(ctx, idCashBack, budget)
+	if err != nil {
+		log.Error("failed to change budget cashback", Sl.Err(err))
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	log.Info("changed budget cashback ")
+	return result, nil
+}
+
+func (l *Loyalty) ChangeTypeCashBack(ctx context.Context, idCashBack int32, typeCashBack int32) (result string, err error) {
+	const op = "Loyalty.ChangeTypeCashBack"
+	log := l.log.With(
+		slog.String("op", op),
+		slog.String("id", strconv.Itoa(int(idCashBack))),
+	)
+
+	result, err = l.promoCodeChanger.ChangeTypeCashBack(ctx, idCashBack, typeCashBack)
+	if err != nil {
+		log.Error("failed to change type cashback", Sl.Err(err))
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	log.Info("changed type cashback ")
+	return result, nil
+}
+
+func (l *Loyalty) ChangeConditionCashBack(ctx context.Context, idCashBack int32, condition string) (result string, err error) {
+	const op = "Loyalty.ChangeConditionCashBack"
+	log := l.log.With(
+		slog.String("op", op),
+		slog.String("id", strconv.Itoa(int(idCashBack))),
+	)
+
+	result, err = l.promoCodeChanger.ChangeConditionCashBack(ctx, idCashBack, condition)
+	if err != nil {
+		log.Error("failed to change condition cashback", Sl.Err(err))
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	log.Info("changed condition cashback ")
 	return result, nil
 }

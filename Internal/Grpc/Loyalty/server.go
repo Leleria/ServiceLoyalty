@@ -39,6 +39,104 @@ type Loyalty interface {
 	AddPersonalPromoCode(ctx context.Context, idClient int32, idGroup int32, namePromoCode string) (result string, err error)
 
 	SettingUpBudget(ctx context.Context, typeCashBack int32, condition string, valueBudget int32) (result string, err error)
+	ChangeBudgetCashBack(ctx context.Context, idCashBack int32, budget int32) (result string, err error)
+	ChangeTypeCashBack(ctx context.Context, idCashBack int32, typeCashBack int32) (result string, err error)
+	ChangeConditionCashBack(ctx context.Context, idCashBack int32, condition string) (result string, err error)
+	GetCashBack(ctx context.Context, idCashBack int32) (result string, err error)
+	GetAllCashBack(ctx context.Context) (result string, err error)
+	DeleteCashBack(ctx context.Context, idCashBack int32) (result string, err error)
+}
+
+func (s *ServerAPI) DeleteCashBack(ctx context.Context,
+	in *sl.DeleteCashBackRequest) (*sl.DeleteCashBackResponse, error) {
+	if !CheckIdCashBack(in.GetIdCashBack()) {
+		return nil, status.Error(codes.InvalidArgument, "incorrect id")
+	}
+	result, err := s.loyalty.DeleteCashBack(ctx, in.GetIdCashBack())
+	if err != nil {
+		if errors.Is(err, Storage.ErrPromoCodeExists) {
+			return nil, status.Error(codes.NotFound, "cashback not found")
+		}
+		return nil, status.Error(codes.Internal, "incorrect id")
+	}
+	return &sl.DeleteCashBackResponse{Result: result}, nil
+}
+
+func (s *ServerAPI) ChangeBudgetCashBack(ctx context.Context,
+	in *sl.ChangeBudgetCashBackRequest) (*sl.ChangeBudgetCashBackResponse, error) {
+	if !CheckIdCashBack(in.GetIdCashBack()) {
+		return nil, status.Error(codes.InvalidArgument, "incorrect id")
+	}
+	if !CheckBudgetCashBack(in.GetBudget()) {
+		return nil, status.Error(codes.InvalidArgument, "incorrect budget")
+	}
+	result, err := s.loyalty.ChangeBudgetCashBack(ctx, in.GetIdCashBack(), in.GetBudget())
+	if err != nil {
+		if errors.Is(err, Storage.ErrCashBackExists) {
+			return nil, status.Error(codes.NotFound, "cashback not found")
+		}
+		return nil, status.Error(codes.Internal, "incorrect data")
+	}
+	return &sl.ChangeBudgetCashBackResponse{Result: result}, nil
+}
+
+func (s *ServerAPI) ChangeTypeCashBack(ctx context.Context,
+	in *sl.ChangeTypeCashBackRequest) (*sl.ChangeTypeCashBackResponse, error) {
+	if !CheckIdCashBack(in.GetIdCashBack()) {
+		return nil, status.Error(codes.InvalidArgument, "incorrect id")
+	}
+	result, err := s.loyalty.ChangeTypeCashBack(ctx, in.GetIdCashBack(), in.GetTypeCashBack())
+	if err != nil {
+		if errors.Is(err, Storage.ErrCashBackExists) {
+			return nil, status.Error(codes.NotFound, "cashback not found")
+		}
+		return nil, status.Error(codes.Internal, "incorrect data")
+	}
+	return &sl.ChangeTypeCashBackResponse{Result: result}, nil
+}
+
+func (s *ServerAPI) ChangeConditionCashBack(ctx context.Context,
+	in *sl.ChangeConditionCashBackRequest) (*sl.ChangeConditionCashBackResponse, error) {
+	if !CheckIdCashBack(in.GetIdCashBack()) {
+		return nil, status.Error(codes.InvalidArgument, "incorrect id")
+	}
+	result, err := s.loyalty.ChangeConditionCashBack(ctx, in.GetIdCashBack(), in.GetCondition())
+	if err != nil {
+		if errors.Is(err, Storage.ErrCashBackExists) {
+			return nil, status.Error(codes.NotFound, "cashback not found")
+		}
+		return nil, status.Error(codes.Internal, "incorrect data")
+	}
+	return &sl.ChangeConditionCashBackResponse{Result: result}, nil
+}
+
+func (s *ServerAPI) GetCashBack(ctx context.Context,
+	in *sl.GetCashBackRequest) (*sl.GetCashBackResponse, error) {
+
+	if !CheckIdCashBack(in.GetIdCashBack()) {
+		return nil, status.Error(codes.InvalidArgument, "incorrect id")
+	}
+
+	result, err := s.loyalty.GetCashBack(ctx, in.GetIdCashBack())
+	if err != nil {
+		if errors.Is(err, Storage.ErrCashBackExists) {
+			return nil, status.Error(codes.NotFound, "cashback not found")
+		}
+		return nil, status.Error(codes.Internal, "incorrect data")
+	}
+	return &sl.GetCashBackResponse{Result: result}, nil
+}
+func (s *ServerAPI) GetAllCashBack(ctx context.Context,
+	in *sl.GetAllCashBackRequest) (*sl.GetAllCashBackResponse, error) {
+
+	result, err := s.loyalty.GetAllCashBack(ctx)
+	if err != nil {
+		if errors.Is(err, Storage.ErrCashBackExists) {
+			return nil, status.Error(codes.NotFound, "cashback not found")
+		}
+		return nil, status.Error(codes.Internal, "incorrect data")
+	}
+	return &sl.GetAllCashBackResponse{Result: result}, nil
 }
 
 func (s *ServerAPI) SettingUpBudget(ctx context.Context,
@@ -49,7 +147,7 @@ func (s *ServerAPI) SettingUpBudget(ctx context.Context,
 	}
 	result, err := s.loyalty.SettingUpBudget(ctx, in.GetTypeCashBack(), in.GetCondition(), in.GetValueBudget())
 	if err != nil {
-		if errors.Is(err, Storage.ErrPromoCodeExists) {
+		if errors.Is(err, Storage.ErrSettingUpBudgetExists) {
 			return nil, status.Error(codes.AlreadyExists, "cashback exists")
 		}
 		return nil, status.Error(codes.Internal, "incorrect data")
@@ -301,9 +399,23 @@ func CheckArgsForSettingUpBudget(request *sl.SettingUpBudgetRequest) bool {
 	}
 	return false
 } //true its error
+
 func CheckName(name string) bool {
 	size := len(name)
 	if size == 5 && IsLetter(name) {
+		return true
+	}
+	return false
+}
+func CheckIdCashBack(id int32) bool {
+	if id > 0 {
+		return true
+	}
+	return false
+}
+
+func CheckBudgetCashBack(budget int32) bool {
+	if budget > 0 {
 		return true
 	}
 	return false

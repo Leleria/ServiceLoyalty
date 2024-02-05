@@ -19,10 +19,23 @@ CREATE TABLE IF NOT EXISTS CashBack (
     FOREIGN KEY(TypeCashBackFK) REFERENCES CashBackTypes(Id)
 );
 
+CREATE TABLE IF NOT EXISTS UserActions (
+    Id	               INTEGER PRIMARY KEY,
+    NameAction	       TEXT	NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS TypesOperations (
+    Id	               INTEGER PRIMARY KEY,
+    NameTypeOperation  TEXT	NOT NULL
+);
+
+
 CREATE TABLE IF NOT EXISTS LoyaltyLevels (
     Id	               INTEGER PRIMARY KEY,
     NameLevel	       TEXT	NOT NULL,
-    MinBalance INTEGER NOT NULL
+    UserActionFK INTEGER NOT NULL,
+    CountBonuses INTEGER NOT NULL,
+    FOREIGN KEY(UserActionFK) REFERENCES UserActions(Id)
 );
 CREATE TABLE IF NOT EXISTS Clients (
     Id	               INTEGER PRIMARY KEY,
@@ -31,6 +44,16 @@ CREATE TABLE IF NOT EXISTS Clients (
     CountBonuses INTEGER NOT NULL,
     LoyaltyLevelFK INTEGER NOT NULL,
     FOREIGN KEY(LoyaltyLevelFK) REFERENCES LoyaltyLevels(Id)
+);
+
+CREATE TABLE IF NOT EXISTS Operations (
+    Id	               INTEGER PRIMARY KEY,
+    TypeOperationFK    INTEGER	NOT NULL,
+    ClientFK             INTEGER	NOT NULL,
+    CountBonuses       INTEGER	NOT NULL,
+    DateAndTimeOperation      TEXT NOT NULL,
+    FOREIGN KEY(TypeOperationFK) REFERENCES TypesOperations(Id),
+    FOREIGN KEY(ClientFK) REFERENCES Clients(Id)
 );
 
 CREATE TABLE IF NOT EXISTS PromoCodes (
