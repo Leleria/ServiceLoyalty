@@ -22,6 +22,12 @@ github.com/Leleria/Contract v0.0.17 h1:5m91nIlY9h5uLXyWP74lBpwc+hzrxwrwDAVGuj3Ir
 github.com/Leleria/Contract v0.0.17/go.mod h1:2jZsYCglUMeiTqQ/QzM7HFavtFYydB1WoNrCLqoJIsc=
 github.com/Leleria/Contract v0.0.18 h1:t8wAcpKdLa5WMZmLsaiUwXAXG5tvI6DysZzM0FXnVCo=
 github.com/Leleria/Contract v0.0.18/go.mod h1:2jZsYCglUMeiTqQ/QzM7HFavtFYydB1WoNrCLqoJIsc=
+github.com/Leleria/Contract v0.0.19 h1:ouWjjfHnnRLAhZQTUXqTC8yalwkILoqY79I71yIUgqM=
+github.com/Leleria/Contract v0.0.19/go.mod h1:2jZsYCglUMeiTqQ/QzM7HFavtFYydB1WoNrCLqoJIsc=
+github.com/Leleria/Contract v0.0.20 h1:a+6lvqwGuESq66ijZEKoly8XDy7yMiG1q0bZjqIbLlk=
+github.com/Leleria/Contract v0.0.20/go.mod h1:2jZsYCglUMeiTqQ/QzM7HFavtFYydB1WoNrCLqoJIsc=
+github.com/Leleria/Contract v0.0.21 h1:b/1PN55z7Y4c9HfsaXa2bIu1lZtcIkHilx1UBYEdB40=
+github.com/Leleria/Contract v0.0.21/go.mod h1:2jZsYCglUMeiTqQ/QzM7HFavtFYydB1WoNrCLqoJIsc=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=

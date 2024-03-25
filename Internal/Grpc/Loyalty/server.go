@@ -3,6 +3,7 @@ package Loyalty
 import (
 	"context"
 	"errors"
+	"fmt"
 	sl "github.com/Leleria/Contract/GeneratedFilesProtoBufGo"
 	"github.com/Leleria/ServiceLoyalty/Internal/Storage"
 	"google.golang.org/grpc"
@@ -45,11 +46,75 @@ type Loyalty interface {
 	GetCashBack(ctx context.Context, idCashBack int32) (result string, err error)
 	GetAllCashBack(ctx context.Context) (result string, err error)
 	DeleteCashBack(ctx context.Context, idCashBack int32) (result string, err error)
+
+	CalculatePriceWithPromoCode(ctx context.Context, idClient int32, namePromoCode string, amountProduct float32) (
+		result string, finalAmountProduct float32, amountDiscount float32, err error)
+	CalculatePriceWithBonuses(ctx context.Context, idClient int32, amountProduct float32) (
+		result string, finalAmountProduct float32, numberBonusesDebited float32, err error)
+	DebitingPromoBonuses(ctx context.Context, idClient int32, paymentStatus bool) (result string, err error)
+}
+
+func (s *ServerAPI) DebitingPromoBonuses(ctx context.Context,
+	in *sl.DebitingPromoBonusesRequest) (*sl.DebitingPromoBonusesResponse, error) {
+	if !CheckIdForTable(in.GetIdClient()) {
+		return nil, status.Error(codes.InvalidArgument, "incorrect id")
+	}
+
+	result, err := s.loyalty.DebitingPromoBonuses(ctx, in.GetIdClient(), in.GetPaymentStatus())
+	if err != nil {
+		if errors.Is(err, Storage.ErrPromoCodeExists) {
+			return nil, status.Error(codes.NotFound, "client not found")
+		}
+		return nil, status.Error(codes.Internal, "failed")
+	}
+	return &sl.DebitingPromoBonusesResponse{Result: result}, nil
+}
+func (s *ServerAPI) CalculatePriceWithBonuses(ctx context.Context,
+	in *sl.CalculatePriceWithBonusesRequest) (*sl.CalculatePriceWithBonusesResponse, error) {
+	if !CheckIdForTable(in.GetIdClient()) {
+		return nil, status.Error(codes.InvalidArgument, "incorrect id")
+	}
+	if !CheckAmountProduct(in.GetAmountProduct()) {
+		return nil, status.Error(codes.InvalidArgument, "amount must be more 100")
+	}
+	resultMessage, resultFinalAmount, resultNumberBonusesDebited, err := s.loyalty.CalculatePriceWithBonuses(ctx, in.GetIdClient(), in.GetAmountProduct())
+	if err != nil {
+		if errors.Is(err, Storage.ErrClientExists) {
+			return nil, status.Error(codes.NotFound, "client not found")
+		}
+		return nil, status.Error(codes.Internal, "failed")
+	}
+	return &sl.CalculatePriceWithBonusesResponse{Result: resultMessage + ", " + fmt.Sprintf("%g", resultFinalAmount) + ", " + fmt.Sprintf("%g", resultNumberBonusesDebited)}, nil
+
+}
+
+func (s *ServerAPI) CalculatePriceWithPromoCode(ctx context.Context,
+	in *sl.CalculatePriceWithPromoCodeRequest) (*sl.CalculatePriceWithPromoCodeResponse, error) {
+
+	if !CheckIdForTable(in.GetIdClient()) {
+		return nil, status.Error(codes.InvalidArgument, "incorrect id")
+	}
+	if !CheckName(in.GetPromoCode()) {
+		return nil, status.Error(codes.InvalidArgument, "incorrect name")
+	}
+	if !CheckAmountProduct(in.GetAmountProduct()) {
+		return nil, status.Error(codes.InvalidArgument, "amount must be more 100")
+	}
+
+	resultMessage, resultFinalAmount, resultAmountDiscount, err := s.loyalty.CalculatePriceWithPromoCode(ctx, in.GetIdClient(), in.GetPromoCode(), in.GetAmountProduct())
+	if err != nil {
+		if errors.Is(err, Storage.ErrPromoCodeExists) {
+			return nil, status.Error(codes.NotFound, "promo code not found")
+		}
+		return nil, status.Error(codes.Internal, "failed")
+	}
+	return &sl.CalculatePriceWithPromoCodeResponse{Result: resultMessage + ", " + fmt.Sprintf("%g", resultFinalAmount) + ", " + fmt.Sprintf("%g", resultAmountDiscount)}, nil
+
 }
 
 func (s *ServerAPI) DeleteCashBack(ctx context.Context,
 	in *sl.DeleteCashBackRequest) (*sl.DeleteCashBackResponse, error) {
-	if !CheckIdCashBack(in.GetIdCashBack()) {
+	if !CheckIdForTable(in.GetIdCashBack()) {
 		return nil, status.Error(codes.InvalidArgument, "incorrect id")
 	}
 	result, err := s.loyalty.DeleteCashBack(ctx, in.GetIdCashBack())
@@ -64,7 +129,7 @@ func (s *ServerAPI) DeleteCashBack(ctx context.Context,
 
 func (s *ServerAPI) ChangeBudgetCashBack(ctx context.Context,
 	in *sl.ChangeBudgetCashBackRequest) (*sl.ChangeBudgetCashBackResponse, error) {
-	if !CheckIdCashBack(in.GetIdCashBack()) {
+	if !CheckIdForTable(in.GetIdCashBack()) {
 		return nil, status.Error(codes.InvalidArgument, "incorrect id")
 	}
 	if !CheckBudgetCashBack(in.GetBudget()) {
@@ -82,7 +147,7 @@ func (s *ServerAPI) ChangeBudgetCashBack(ctx context.Context,
 
 func (s *ServerAPI) ChangeTypeCashBack(ctx context.Context,
 	in *sl.ChangeTypeCashBackRequest) (*sl.ChangeTypeCashBackResponse, error) {
-	if !CheckIdCashBack(in.GetIdCashBack()) {
+	if !CheckIdForTable(in.GetIdCashBack()) {
 		return nil, status.Error(codes.InvalidArgument, "incorrect id")
 	}
 	result, err := s.loyalty.ChangeTypeCashBack(ctx, in.GetIdCashBack(), in.GetTypeCashBack())
@@ -97,7 +162,7 @@ func (s *ServerAPI) ChangeTypeCashBack(ctx context.Context,
 
 func (s *ServerAPI) ChangeConditionCashBack(ctx context.Context,
 	in *sl.ChangeConditionCashBackRequest) (*sl.ChangeConditionCashBackResponse, error) {
-	if !CheckIdCashBack(in.GetIdCashBack()) {
+	if !CheckIdForTable(in.GetIdCashBack()) {
 		return nil, status.Error(codes.InvalidArgument, "incorrect id")
 	}
 	result, err := s.loyalty.ChangeConditionCashBack(ctx, in.GetIdCashBack(), in.GetCondition())
@@ -113,7 +178,7 @@ func (s *ServerAPI) ChangeConditionCashBack(ctx context.Context,
 func (s *ServerAPI) GetCashBack(ctx context.Context,
 	in *sl.GetCashBackRequest) (*sl.GetCashBackResponse, error) {
 
-	if !CheckIdCashBack(in.GetIdCashBack()) {
+	if !CheckIdForTable(in.GetIdCashBack()) {
 		return nil, status.Error(codes.InvalidArgument, "incorrect id")
 	}
 
@@ -407,7 +472,7 @@ func CheckName(name string) bool {
 	}
 	return false
 }
-func CheckIdCashBack(id int32) bool {
+func CheckIdForTable(id int32) bool {
 	if id > 0 {
 		return true
 	}
@@ -416,6 +481,12 @@ func CheckIdCashBack(id int32) bool {
 
 func CheckBudgetCashBack(budget int32) bool {
 	if budget > 0 {
+		return true
+	}
+	return false
+}
+func CheckAmountProduct(amount float32) bool {
+	if amount >= 100 {
 		return true
 	}
 	return false

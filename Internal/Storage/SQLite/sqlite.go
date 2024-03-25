@@ -9,11 +9,14 @@ import (
 	st "github.com/Leleria/ServiceLoyalty/Internal/Storage"
 	"github.com/mattn/go-sqlite3"
 	"strconv"
+	"time"
 )
 
 type Storage struct {
 	db *sql.DB
 }
+
+var bufferChannel chan string
 
 // Конструктор Storage
 func New(storagePath string) (*Storage, error) {
@@ -27,6 +30,210 @@ func New(storagePath string) (*Storage, error) {
 
 	return &Storage{db: db}, nil
 }
+
+func (s *Storage) CalculatePriceWithPromoCode(ctx context.Context, idClient int32, namePromoCode string,
+	amountProduct float32) (string, float32, float32, error) {
+	const op = "Storage.SQLite.CalculatePriceWithPromoCode"
+
+	err := s.CheckContainPromoCode(ctx, namePromoCode)
+	if err != nil {
+		return "", 0, 0, fmt.Errorf("%s: %w", op, err)
+	}
+	err = s.CheckContainClient(ctx, idClient)
+	if err != nil {
+		return "", 0, 0, fmt.Errorf("%s: %w", op, err)
+	}
+
+	stmt, err := s.db.Prepare("select TypesOfDiscounts.NameType, ValueDiscount, DateFinishActive," +
+		" MaxCountUses FROM PromoCodes INNER JOIN TypesOfDiscounts ON PromoCodes.TypeDiscountFK = TypesOfDiscounts.Id  WHERE PromoCodes.Name = ?")
+	if err != nil {
+		return "", 0, 0, fmt.Errorf("%s: %w", op, err)
+	}
+
+	row := stmt.QueryRowContext(ctx, namePromoCode)
+
+	var promoCode Models.PromoCode
+	var typeDiscountPromoCode Models.TypeDiscount
+	err = row.Scan(&typeDiscountPromoCode.NameType, &promoCode.ValueDiscount,
+		&promoCode.DateFinishActive, &promoCode.MaxCountUses)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", 0, 0, fmt.Errorf("%s: %w", op, st.ErrPromoCodeFound)
+		}
+
+		return "", 0, 0, fmt.Errorf("%s: %w", op, err)
+	}
+
+	resultTypeDiscountPromoCode := typeDiscountPromoCode.NameType
+	resultValueDiscountPromoCode := promoCode.ValueDiscount
+	resultDateFinishActivePromoCode := promoCode.DateFinishActive
+	resultMaxCountUsesPromoCode := promoCode.MaxCountUses
+
+	timeNow := time.Now()
+	currentTime := timeNow.Format("2006-01-02")
+	if resultDateFinishActivePromoCode < currentTime {
+		return "promo code is expired", 0, 0, fmt.Errorf("%s: %w", op, "promo code is expired")
+	}
+
+	if resultMaxCountUsesPromoCode == 0 {
+		return "max count uses is zero", 0, 0, fmt.Errorf("%s: %w", op, "max count uses is zero")
+	}
+
+	var finalAmount float32
+	var amountDiscount float32
+
+	if resultTypeDiscountPromoCode == "фиксированная сумма" {
+
+		amountDiscount = float32(resultValueDiscountPromoCode)
+
+		if amountProduct > float32(resultValueDiscountPromoCode) {
+			bufferChannel = make(chan string, 3)
+			finalAmount = amountProduct - float32(resultValueDiscountPromoCode)
+			bufferChannel <- strconv.Itoa(int(idClient))
+			bufferChannel <- namePromoCode
+			bufferChannel <- strconv.Itoa(int(resultMaxCountUsesPromoCode))
+
+		} else {
+			return "base price is less than the fixed amount of the promo code", finalAmount, amountDiscount, nil
+		}
+	}
+	if resultTypeDiscountPromoCode == "процентная" {
+
+		amountDiscount = (amountProduct * float32(resultValueDiscountPromoCode)) / 100
+		finalAmount = amountProduct - amountDiscount
+		bufferChannel = make(chan string, 3)
+		bufferChannel <- strconv.Itoa(int(idClient))
+		bufferChannel <- namePromoCode
+		bufferChannel <- strconv.Itoa(int(resultMaxCountUsesPromoCode))
+	}
+
+	return "complete", finalAmount, amountDiscount, nil
+
+}
+func (s *Storage) CalculatePriceWithBonuses(ctx context.Context, idClient int32,
+	amountProduct float32) (string, float32, float32, error) {
+	const op = "Storage.SQLite.CalculatePriceWithBonuses"
+
+	err := s.CheckContainClient(ctx, idClient)
+	if err != nil {
+		return "", 0, 0, fmt.Errorf("%s: %w", op, err)
+	}
+
+	stmt, err := s.db.Prepare("select CountBonuses FROM Clients WHERE Id = ?")
+	if err != nil {
+		return "", 0, 0, fmt.Errorf("%s: %w", op, err)
+	}
+
+	row := stmt.QueryRowContext(ctx, idClient)
+
+	var countBonuses int32
+	err = row.Scan(&countBonuses)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", 0, 0, fmt.Errorf("%s: %w", op, st.ErrPromoCodeFound)
+		}
+
+		return "", 0, 0, fmt.Errorf("%s: %w", op, err)
+	}
+
+	resultCountBonuses := countBonuses
+
+	/*timeNow := time.Now()
+	currentTime := timeNow.Format("2006-01-02")
+	if resultDateFinishActivePromoCode < currentTime {
+		return "promo code is expired", 0, 0, fmt.Errorf("%s: %w", op, "promo code is expired")
+	}
+
+	if resultMaxCountUsesPromoCode == 0 {
+		return "max count uses is zero", 0, 0, fmt.Errorf("%s: %w", op, "max count uses is zero")
+	}*/
+
+	var finalAmount float32
+	var numberBonusesDebited float32
+	var amountDiscount float32
+
+	if resultCountBonuses > 0 {
+		bufferChannel = make(chan string, 2)
+		amountDiscount = (amountProduct * 30) / 100
+
+		if countBonuses <= int32(amountDiscount) {
+			//списываем бонусы все
+			finalAmount = amountProduct - float32(countBonuses)
+			numberBonusesDebited = float32(countBonuses)
+			bufferChannel <- strconv.Itoa(int(idClient))
+			bufferChannel <- strconv.Itoa(int(countBonuses - countBonuses))
+
+		} else {
+			//списываем discount
+			finalAmount = amountProduct - amountDiscount
+			numberBonusesDebited = amountDiscount
+			bufferChannel <- strconv.Itoa(int(idClient))
+			bufferChannel <- strconv.Itoa(int(countBonuses - int32(amountDiscount)))
+		}
+	} else {
+		return "there are not enough bonuses in the account", finalAmount, numberBonusesDebited, nil
+	}
+	return "complete", finalAmount, numberBonusesDebited, nil
+
+}
+func (s *Storage) DebitingPromoBonuses(ctx context.Context, idClient int32, paymentStatus bool) (string, error) {
+	const op = "Storage.SQLite.WaitForPaymentConfirmation"
+
+	err := s.CheckContainClient(ctx, idClient)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	if paymentStatus {
+		if bufferChannel == nil {
+			return "no information about the shares has been entered", nil
+		} else if len(bufferChannel) == 3 {
+
+			bufferIdClient := <-bufferChannel
+			bIdClient, _ := strconv.Atoi(bufferIdClient)
+			if idClient == int32(bIdClient) {
+				namePromoCode := <-bufferChannel
+				maxCountUses := <-bufferChannel
+
+				countUses, _ := strconv.Atoi(maxCountUses)
+				_, err := s.ChangeMaxCountUsesPromoCode(ctx, namePromoCode, int32(countUses)-1)
+				if err != nil {
+					return "", fmt.Errorf("%s: %w", op, err)
+				}
+				bufferChannel = nil
+			} else {
+				return "client was not found", nil
+			}
+		} else if len(bufferChannel) == 2 {
+			bufferClient := <-bufferChannel
+			bIdClient, _ := strconv.Atoi(bufferClient)
+			if idClient == int32(bIdClient) {
+				countBonuses := <-bufferChannel
+				countBonusesInt, _ := strconv.Atoi(countBonuses)
+
+				stmt, err := s.db.Prepare("UPDATE Clients SET CountBonuses = ? WHERE Id = ?")
+				if err != nil {
+					return "", fmt.Errorf("%s: %w", op, err)
+				}
+
+				// Выполняем запрос, передав параметры
+				_, err = stmt.ExecContext(ctx, countBonusesInt, idClient)
+				if err != nil {
+					return "", fmt.Errorf("%s: %w", op, err)
+				}
+			} else {
+				return "client was not found", nil
+			}
+			bufferChannel = nil
+		}
+
+	} else {
+		return "payment has not been confirmed", nil
+	}
+
+	return "complete", nil
+}
+
 func (s *Storage) ChangeNamePromoCode(ctx context.Context, name string, newName string) (string, error) {
 	const op = "Storage.SQLite.ChangeNamePromoCode"
 

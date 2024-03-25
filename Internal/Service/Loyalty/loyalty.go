@@ -33,6 +33,12 @@ type PromoCodeChanger interface {
 	GetCashBack(ctx context.Context, idCashBack int32) (result string, err error)
 	GetAllCashBack(ctx context.Context) (result string, err error)
 	DeleteCashBack(ctx context.Context, idCashBack int32) (result string, err error)
+
+	CalculatePriceWithPromoCode(ctx context.Context, idClient int32, namePromoCode string, amountProduct float32) (
+		result string, finalAmountProduct float32, amountDiscount float32, err error)
+	CalculatePriceWithBonuses(ctx context.Context, idClient int32, amountProduct float32) (
+		result string, finalAmountProduct float32, numberBonusesDebited float32, err error)
+	DebitingPromoBonuses(ctx context.Context, idClient int32, paymentStatus bool) (result string, err error)
 }
 
 type Loyalty struct {
@@ -45,6 +51,53 @@ func New(log *slog.Logger,
 	return &Loyalty{log: log,
 		promoCodeChanger: promoCodeChanger,
 	}
+}
+
+func (l *Loyalty) DebitingPromoBonuses(ctx context.Context, idClient int32, paymentStatus bool) (result string, err error) {
+	const op = "Loyalty.CalculatePriceWithPromoCode"
+	log := l.log.With(
+		slog.String("op", op),
+		slog.String("idClient", strconv.Itoa(int(idClient))),
+	)
+	log.Info("paid by client " + "\"" + strconv.Itoa(int(idClient)))
+	result, err = l.promoCodeChanger.DebitingPromoBonuses(ctx, idClient, paymentStatus)
+	if err != nil {
+		log.Error("failed to wait for payment confirmation", Sl.Err(err))
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	return result, nil
+}
+
+func (l *Loyalty) CalculatePriceWithPromoCode(ctx context.Context, idClient int32, namePromoCode string,
+	amountProduct float32) (result string, finalAmountProduct float32, amountDiscount float32, err error) {
+	const op = "Loyalty.CalculatePriceWithPromoCode"
+	log := l.log.With(
+		slog.String("op", op),
+		slog.String("namePromoCode", namePromoCode),
+		slog.String("idClient", strconv.Itoa(int(idClient))),
+	)
+	log.Info("calculated " + "\"" + strconv.Itoa(int(amountProduct)) + "\"" + " product amount")
+	result, finalAmountProduct, amountDiscount, err = l.promoCodeChanger.CalculatePriceWithPromoCode(ctx, idClient, namePromoCode, amountProduct)
+	if err != nil {
+		log.Error("failed to calculated price", Sl.Err(err))
+		return "", 0, 0, fmt.Errorf("%s: %w", op, err)
+	}
+	return result, finalAmountProduct, amountDiscount, nil
+}
+func (l *Loyalty) CalculatePriceWithBonuses(ctx context.Context, idClient int32,
+	amountProduct float32) (result string, finalAmountProduct float32, numberBonusesDebited float32, err error) {
+	const op = "Loyalty.CalculatePriceWithBonuses"
+	log := l.log.With(
+		slog.String("op", op),
+		slog.String("idClient", strconv.Itoa(int(idClient))),
+	)
+	log.Info("calculated " + "\"" + strconv.Itoa(int(amountProduct)) + "\"" + " product amount")
+	result, finalAmountProduct, numberBonusesDebited, err = l.promoCodeChanger.CalculatePriceWithBonuses(ctx, idClient, amountProduct)
+	if err != nil {
+		log.Error("failed to calculated price", Sl.Err(err))
+		return "", 0, 0, fmt.Errorf("%s: %w", op, err)
+	}
+	return result, finalAmountProduct, numberBonusesDebited, nil
 }
 
 func (l *Loyalty) DeleteCashBack(ctx context.Context, idCashBack int32) (result string, err error) {
