@@ -12,9 +12,13 @@ import (
 func main() {
 	var storagePath, migrationsPath, migrationsTable string
 
-	flag.StringVar(&storagePath, "storage_path", "C:/Users/kit/GolandProjects/ServiceLoyalty/Storage/ServiceLoyalty.db", "path to storage")
-	flag.StringVar(&migrationsPath, "migrations-path", "C:/Users/kit/GolandProjects/ServiceLoyalty/Migrations", "path to migrations")
-	flag.StringVar(&migrationsTable, "migrations-table", "Migrations", "name of migrations table")
+	//flag.StringVar(&storagePath, "storage-path", "C:/Users/kit/GolandProjects/ServiceLoyalty/Storage/ServiceLoyalty.db", "path to storage")
+	//flag.StringVar(&migrationsPath, "migrations-path", "C:/Users/kit/GolandProjects/ServiceLoyalty/Migrations", "path to migrations")
+	//flag.StringVar(&migrationsTable, "migrations-table", "Migrations", "name of migrations table")
+
+	flag.StringVar(&storagePath, "storage-path", "", "path to storage")
+	flag.StringVar(&migrationsPath, "migrations-path", "", "path to migrations")
+	flag.StringVar(&migrationsTable, "migrations-table", "migrations", "name of migrations table")
 	flag.Parse()
 
 	if storagePath == "" {
@@ -39,4 +43,6 @@ func main() {
 		}
 		panic(err)
 	}
+
+	fmt.Println("migrations applied successfully")
 }

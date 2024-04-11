@@ -10,7 +10,7 @@ import (
 
 type PromoCodeChanger interface {
 	SavePersonalPromoCode(ctx context.Context, idClient int32, idGroup int32,
-		IdPromoCode string) (result string, err error)
+		IdPromoCode string, typeDiscount int32, valueDiscount int32, dateStartActive string, dateFinishActive string) (result string, err error)
 	SavePromoCode(ctx context.Context,
 		name string, typeDiscount int32,
 		valueDiscount int32, dateStartActive string,
@@ -39,6 +39,7 @@ type PromoCodeChanger interface {
 	CalculatePriceWithBonuses(ctx context.Context, idClient int32, amountProduct float32) (
 		result string, finalAmountProduct float32, numberBonusesDebited float32, err error)
 	DebitingPromoBonuses(ctx context.Context, idClient int32, paymentStatus bool) (result string, err error)
+	AccrualBonusesCashback(ctx context.Context, idClient int32, idCaskBack int32) (result string, err error)
 }
 
 type Loyalty struct {
@@ -53,8 +54,23 @@ func New(log *slog.Logger,
 	}
 }
 
+func (l *Loyalty) AccrualBonusesCashback(ctx context.Context, idClient int32, idCashBack int32) (result string, err error) {
+	const op = "Loyalty.AccrualBonusesCashback"
+	log := l.log.With(
+		slog.String("op", op),
+		slog.String("idClient", strconv.Itoa(int(idClient))),
+		slog.String("idClient", strconv.Itoa(int(idCashBack))),
+	)
+	result, err = l.promoCodeChanger.AccrualBonusesCashback(ctx, idClient, idCashBack)
+	if err != nil {
+		log.Error("failed to accrual bonuses", Sl.Err(err))
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	return result, nil
+}
+
 func (l *Loyalty) DebitingPromoBonuses(ctx context.Context, idClient int32, paymentStatus bool) (result string, err error) {
-	const op = "Loyalty.CalculatePriceWithPromoCode"
+	const op = "Loyalty.DebitingPromoBonuses"
 	log := l.log.With(
 		slog.String("op", op),
 		slog.String("idClient", strconv.Itoa(int(idClient))),
@@ -62,7 +78,7 @@ func (l *Loyalty) DebitingPromoBonuses(ctx context.Context, idClient int32, paym
 	log.Info("paid by client " + "\"" + strconv.Itoa(int(idClient)))
 	result, err = l.promoCodeChanger.DebitingPromoBonuses(ctx, idClient, paymentStatus)
 	if err != nil {
-		log.Error("failed to wait for payment confirmation", Sl.Err(err))
+		log.Error("failed to debiting promo code oe bonuses", Sl.Err(err))
 		return "", fmt.Errorf("%s: %w", op, err)
 	}
 	return result, nil
@@ -84,6 +100,7 @@ func (l *Loyalty) CalculatePriceWithPromoCode(ctx context.Context, idClient int3
 	}
 	return result, finalAmountProduct, amountDiscount, nil
 }
+
 func (l *Loyalty) CalculatePriceWithBonuses(ctx context.Context, idClient int32,
 	amountProduct float32) (result string, finalAmountProduct float32, numberBonusesDebited float32, err error) {
 	const op = "Loyalty.CalculatePriceWithBonuses"
@@ -268,14 +285,15 @@ func (l *Loyalty) AddNewPromoCode(ctx context.Context, name string, typeDiscount
 }
 
 func (l *Loyalty) AddPersonalPromoCode(ctx context.Context, idClient int32, idGroup int32,
-	IdPromoCode string) (string, error) {
+	IdPromoCode string, typeDiscount int32, valueDiscount int32, dateStartActive string, dateFinishActive string) (string, error) {
 	const op = "Loyalty.AddPersonalPromoCode"
 	log := l.log.With(
 		slog.String("op", op),
 	)
 	log.Info("added personal promo code")
 
-	result, err := l.promoCodeChanger.SavePersonalPromoCode(ctx, idClient, idGroup, IdPromoCode)
+	result, err := l.promoCodeChanger.SavePersonalPromoCode(ctx, idClient, idGroup, IdPromoCode, typeDiscount,
+		valueDiscount, dateStartActive, dateFinishActive)
 	if err != nil {
 		log.Error("failed to save personal promo code", Sl.Err(err))
 		return "", fmt.Errorf("%s: %w", op, err)

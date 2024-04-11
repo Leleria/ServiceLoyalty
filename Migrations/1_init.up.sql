@@ -71,10 +71,14 @@ CREATE TABLE IF NOT EXISTS PersonalPromoCodes (
     Id INTEGER PRIMARY KEY,
     ClientFK INTEGER	NOT NULL,
     GroupFK INTEGER NOT NULL,
-    PromoCodeFK INTEGER NOT NULL,
+    NamePromoCode TEXT,
+    TypeDiscountFK INTEGER NOT NULL,
+    ValueDiscount INTEGER NOT NULL,
+    DateStartActive TEXT,
+    DateFinishActive TEXT,
+    FOREIGN KEY(TypeDiscountFK) REFERENCES TypesOfDiscounts(Id),
     FOREIGN KEY(ClientFK) REFERENCES Clients(Id),
-    FOREIGN KEY(GroupFK) REFERENCES TypesOfGroups(Id),
-    FOREIGN KEY(PromoCodeFK) REFERENCES PromoCodes(Id)
+    FOREIGN KEY(GroupFK) REFERENCES TypesOfGroups(Id)
 );
 
 

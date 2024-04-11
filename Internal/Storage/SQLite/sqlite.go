@@ -31,6 +31,82 @@ func New(storagePath string) (*Storage, error) {
 	return &Storage{db: db}, nil
 }
 
+func (s *Storage) AccrualBonusesCashback(ctx context.Context, idClient int32, idCashBack int32) (string, error) {
+	const op = "Storage.SQLite.AccrualBonusesCashback"
+
+	err := s.CheckContainClient(ctx, idClient)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	err = s.CheckContainCashBack(ctx, idCashBack)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	stmt, err := s.db.Prepare("select Budget FROM CashBack WHERE Id = ?")
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	row := stmt.QueryRowContext(ctx, idCashBack)
+	var budget int32
+
+	err = row.Scan(&budget)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", fmt.Errorf("%s: %w", op, st.ErrCashBackFound)
+		}
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	stmt, err = s.db.Prepare("select CountBonuses FROM Clients WHERE Id = ?")
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	row = stmt.QueryRowContext(ctx, idClient)
+	var countBonuses int32
+
+	err = row.Scan(&countBonuses)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", fmt.Errorf("%s: %w", op, st.ErrClientFound)
+		}
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	stmt, err = s.db.Prepare("UPDATE Clients SET CountBonuses = ? WHERE Id = ?")
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	// Выполняем запрос, передав параметры
+	_, err = stmt.ExecContext(ctx, countBonuses+budget, idClient)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	stmt, err = s.db.Prepare("INSERT INTO Operations(TypeOperationFK, ClientFK, CountBonuses, DateAndTimeOperation) VALUES(?, ?, ?, ?)")
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	timeNow := time.Now()
+	currentTime := timeNow.Format("2006-01-02 15:04:05")
+	// Выполняем запрос, передав параметры
+	_, err = stmt.ExecContext(ctx, 1, idClient, budget, currentTime)
+	if err != nil {
+		var sqliteErr sqlite3.Error
+
+		if errors.As(err, &sqliteErr) && sqliteErr.ExtendedCode == sqlite3.ErrConstraintUnique {
+			return "", fmt.Errorf("%s: %w", op, st.ErrPromoCodeExists)
+		}
+
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	return "complete", nil
+}
 func (s *Storage) CalculatePriceWithPromoCode(ctx context.Context, idClient int32, namePromoCode string,
 	amountProduct float32) (string, float32, float32, error) {
 	const op = "Storage.SQLite.CalculatePriceWithPromoCode"
@@ -44,7 +120,7 @@ func (s *Storage) CalculatePriceWithPromoCode(ctx context.Context, idClient int3
 		return "", 0, 0, fmt.Errorf("%s: %w", op, err)
 	}
 
-	stmt, err := s.db.Prepare("select TypesOfDiscounts.NameType, ValueDiscount, DateFinishActive," +
+	stmt, err := s.db.Prepare("select PromoCodes.Id, TypesOfDiscounts.NameType, ValueDiscount, DateFinishActive," +
 		" MaxCountUses FROM PromoCodes INNER JOIN TypesOfDiscounts ON PromoCodes.TypeDiscountFK = TypesOfDiscounts.Id  WHERE PromoCodes.Name = ?")
 	if err != nil {
 		return "", 0, 0, fmt.Errorf("%s: %w", op, err)
@@ -54,7 +130,7 @@ func (s *Storage) CalculatePriceWithPromoCode(ctx context.Context, idClient int3
 
 	var promoCode Models.PromoCode
 	var typeDiscountPromoCode Models.TypeDiscount
-	err = row.Scan(&typeDiscountPromoCode.NameType, &promoCode.ValueDiscount,
+	err = row.Scan(&promoCode.Id, &typeDiscountPromoCode.NameType, &promoCode.ValueDiscount,
 		&promoCode.DateFinishActive, &promoCode.MaxCountUses)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -64,47 +140,100 @@ func (s *Storage) CalculatePriceWithPromoCode(ctx context.Context, idClient int3
 		return "", 0, 0, fmt.Errorf("%s: %w", op, err)
 	}
 
+	resultIdPromoCode := promoCode.Id
 	resultTypeDiscountPromoCode := typeDiscountPromoCode.NameType
 	resultValueDiscountPromoCode := promoCode.ValueDiscount
 	resultDateFinishActivePromoCode := promoCode.DateFinishActive
 	resultMaxCountUsesPromoCode := promoCode.MaxCountUses
 
-	timeNow := time.Now()
-	currentTime := timeNow.Format("2006-01-02")
-	if resultDateFinishActivePromoCode < currentTime {
-		return "promo code is expired", 0, 0, fmt.Errorf("%s: %w", op, "promo code is expired")
+	stmt, err = s.db.Prepare("select Id FROM PersonalPromoCodes WHERE ClientFK = ? AND PromoCodeFK = ?")
+	if err != nil {
+		return "", 0, 0, fmt.Errorf("%s: %w", op, err)
 	}
 
-	if resultMaxCountUsesPromoCode == 0 {
-		return "max count uses is zero", 0, 0, fmt.Errorf("%s: %w", op, "max count uses is zero")
-	}
+	row = stmt.QueryRowContext(ctx, idClient, resultIdPromoCode)
+	var idPersonal int32
 
 	var finalAmount float32
 	var amountDiscount float32
+	err = row.Scan(&idPersonal)
+	if err != nil {
+		timeNow := time.Now()
+		currentTime := timeNow.Format("2006-01-02")
+		if resultDateFinishActivePromoCode < currentTime {
+			return "promo code is expired", 0, 0, fmt.Errorf("%s: %w", op, "promo code is expired")
+		}
 
-	if resultTypeDiscountPromoCode == "фиксированная сумма" {
+		if resultMaxCountUsesPromoCode == 0 {
+			return "max count uses is zero", 0, 0, fmt.Errorf("%s: %w", op, "max count uses is zero")
+		}
 
-		amountDiscount = float32(resultValueDiscountPromoCode)
+		if resultTypeDiscountPromoCode == "фиксированная сумма" {
 
-		if amountProduct > float32(resultValueDiscountPromoCode) {
+			amountDiscount = float32(resultValueDiscountPromoCode)
+
+			if amountProduct > float32(resultValueDiscountPromoCode) {
+
+				bufferChannel = make(chan string, 3)
+				finalAmount = amountProduct - float32(resultValueDiscountPromoCode)
+				bufferChannel <- strconv.Itoa(int(idClient))
+				bufferChannel <- namePromoCode
+				bufferChannel <- strconv.Itoa(int(resultMaxCountUsesPromoCode))
+
+			} else {
+				return "base price is less than the fixed amount of the promo code", finalAmount, amountDiscount, nil
+			}
+		}
+		if resultTypeDiscountPromoCode == "процентная" {
+
+			amountDiscount = (amountProduct * float32(resultValueDiscountPromoCode)) / 100
+			finalAmount = amountProduct - amountDiscount
 			bufferChannel = make(chan string, 3)
-			finalAmount = amountProduct - float32(resultValueDiscountPromoCode)
 			bufferChannel <- strconv.Itoa(int(idClient))
 			bufferChannel <- namePromoCode
 			bufferChannel <- strconv.Itoa(int(resultMaxCountUsesPromoCode))
 
-		} else {
-			return "base price is less than the fixed amount of the promo code", finalAmount, amountDiscount, nil
 		}
-	}
-	if resultTypeDiscountPromoCode == "процентная" {
+	} else {
+		timeNow := time.Now()
+		currentTime := timeNow.Format("2006-01-02")
+		if resultDateFinishActivePromoCode < currentTime {
+			return "promo code is expired", 0, 0, fmt.Errorf("%s: %w", op, "promo code is expired")
+		}
 
-		amountDiscount = (amountProduct * float32(resultValueDiscountPromoCode)) / 100
-		finalAmount = amountProduct - amountDiscount
-		bufferChannel = make(chan string, 3)
-		bufferChannel <- strconv.Itoa(int(idClient))
-		bufferChannel <- namePromoCode
-		bufferChannel <- strconv.Itoa(int(resultMaxCountUsesPromoCode))
+		if resultMaxCountUsesPromoCode == 0 {
+			return "max count uses is zero", 0, 0, fmt.Errorf("%s: %w", op, "max count uses is zero")
+		}
+
+		if resultTypeDiscountPromoCode == "фиксированная сумма" {
+
+			amountDiscount = float32(resultValueDiscountPromoCode)
+
+			if amountProduct > float32(resultValueDiscountPromoCode) {
+
+				bufferChannel = make(chan string, 4)
+				finalAmount = amountProduct - float32(resultValueDiscountPromoCode)
+				bufferChannel <- strconv.Itoa(int(idClient))
+				bufferChannel <- namePromoCode
+				bufferChannel <- strconv.Itoa(int(resultMaxCountUsesPromoCode))
+				bufferChannel <- strconv.Itoa(int(idPersonal))
+
+			} else {
+				return "base price is less than the fixed amount of the promo code", finalAmount, amountDiscount, nil
+			}
+		}
+		if resultTypeDiscountPromoCode == "процентная" {
+
+			amountDiscount = (amountProduct * float32(resultValueDiscountPromoCode)) / 100
+			finalAmount = amountProduct - amountDiscount
+			bufferChannel = make(chan string, 4)
+			bufferChannel <- strconv.Itoa(int(idClient))
+			bufferChannel <- namePromoCode
+			bufferChannel <- strconv.Itoa(int(resultMaxCountUsesPromoCode))
+			bufferChannel <- strconv.Itoa(int(idPersonal))
+
+		}
+
 	}
 
 	return "complete", finalAmount, amountDiscount, nil
@@ -137,17 +266,6 @@ func (s *Storage) CalculatePriceWithBonuses(ctx context.Context, idClient int32,
 	}
 
 	resultCountBonuses := countBonuses
-
-	/*timeNow := time.Now()
-	currentTime := timeNow.Format("2006-01-02")
-	if resultDateFinishActivePromoCode < currentTime {
-		return "promo code is expired", 0, 0, fmt.Errorf("%s: %w", op, "promo code is expired")
-	}
-
-	if resultMaxCountUsesPromoCode == 0 {
-		return "max count uses is zero", 0, 0, fmt.Errorf("%s: %w", op, "max count uses is zero")
-	}*/
-
 	var finalAmount float32
 	var numberBonusesDebited float32
 	var amountDiscount float32
@@ -161,14 +279,14 @@ func (s *Storage) CalculatePriceWithBonuses(ctx context.Context, idClient int32,
 			finalAmount = amountProduct - float32(countBonuses)
 			numberBonusesDebited = float32(countBonuses)
 			bufferChannel <- strconv.Itoa(int(idClient))
-			bufferChannel <- strconv.Itoa(int(countBonuses - countBonuses))
+			bufferChannel <- strconv.Itoa(int(countBonuses))
 
 		} else {
 			//списываем discount
 			finalAmount = amountProduct - amountDiscount
 			numberBonusesDebited = amountDiscount
 			bufferChannel <- strconv.Itoa(int(idClient))
-			bufferChannel <- strconv.Itoa(int(countBonuses - int32(amountDiscount)))
+			bufferChannel <- strconv.Itoa(int(numberBonusesDebited))
 		}
 	} else {
 		return "there are not enough bonuses in the account", finalAmount, numberBonusesDebited, nil
@@ -177,7 +295,7 @@ func (s *Storage) CalculatePriceWithBonuses(ctx context.Context, idClient int32,
 
 }
 func (s *Storage) DebitingPromoBonuses(ctx context.Context, idClient int32, paymentStatus bool) (string, error) {
-	const op = "Storage.SQLite.WaitForPaymentConfirmation"
+	const op = "Storage.SQLite.DebitingPromoBonuses"
 
 	err := s.CheckContainClient(ctx, idClient)
 	if err != nil {
@@ -187,6 +305,36 @@ func (s *Storage) DebitingPromoBonuses(ctx context.Context, idClient int32, paym
 	if paymentStatus {
 		if bufferChannel == nil {
 			return "no information about the shares has been entered", nil
+		} else if len(bufferChannel) == 4 {
+
+			bufferIdClient := <-bufferChannel
+			bIdClient, _ := strconv.Atoi(bufferIdClient)
+			if idClient == int32(bIdClient) {
+				namePromoCode := <-bufferChannel
+				maxCountUses := <-bufferChannel
+
+				countUses, _ := strconv.Atoi(maxCountUses)
+				idPersonalPromoCode := <-bufferChannel
+
+				_, err := s.ChangeMaxCountUsesPromoCode(ctx, namePromoCode, int32(countUses)-1)
+				if err != nil {
+					return "", fmt.Errorf("%s: %w", op, err)
+				}
+
+				stmt, err := s.db.Prepare("DELETE FROM PersonalPromoCodes WHERE Id = ?")
+				if err != nil {
+					return "", fmt.Errorf("%s: %w", op, err)
+				}
+
+				// Выполняем запрос, передав параметры
+				_, err = stmt.ExecContext(ctx, idPersonalPromoCode)
+				if err != nil {
+					return "", fmt.Errorf("%s: %w", op, err)
+				}
+				bufferChannel = nil
+			} else {
+				return "client was not found", nil
+			}
 		} else if len(bufferChannel) == 3 {
 
 			bufferIdClient := <-bufferChannel
@@ -211,16 +359,53 @@ func (s *Storage) DebitingPromoBonuses(ctx context.Context, idClient int32, paym
 				countBonuses := <-bufferChannel
 				countBonusesInt, _ := strconv.Atoi(countBonuses)
 
-				stmt, err := s.db.Prepare("UPDATE Clients SET CountBonuses = ? WHERE Id = ?")
+				stmt, err := s.db.Prepare("SELECT CountBonuses FROM Clients WHERE Id = ?")
+				if err != nil {
+					return "", fmt.Errorf("%s: %w", op, err)
+				}
+
+				row := stmt.QueryRowContext(ctx, bIdClient)
+
+				var countBonusesClient int
+				err = row.Scan(&countBonusesClient)
+				if err != nil {
+					if errors.Is(err, sql.ErrNoRows) {
+						return "", fmt.Errorf("%s: %w", op, st.ErrClientFound)
+					}
+
+					return "", fmt.Errorf("%s: %w", op, err)
+				}
+
+				stmt, err = s.db.Prepare("UPDATE Clients SET CountBonuses = ? WHERE Id = ?")
 				if err != nil {
 					return "", fmt.Errorf("%s: %w", op, err)
 				}
 
 				// Выполняем запрос, передав параметры
-				_, err = stmt.ExecContext(ctx, countBonusesInt, idClient)
+				_, err = stmt.ExecContext(ctx, countBonusesClient-countBonusesInt, idClient)
 				if err != nil {
 					return "", fmt.Errorf("%s: %w", op, err)
 				}
+
+				stmt, err = s.db.Prepare("INSERT INTO Operations(TypeOperationFK, ClientFK, CountBonuses, DateAndTimeOperation) VALUES(?, ?, ?, ?)")
+				if err != nil {
+					return "", fmt.Errorf("%s: %w", op, err)
+				}
+
+				timeNow := time.Now()
+				currentTime := timeNow.Format("2006-01-02 15:04:05")
+				// Выполняем запрос, передав параметры
+				_, err = stmt.ExecContext(ctx, 2, idClient, countBonusesInt, currentTime)
+				if err != nil {
+					var sqliteErr sqlite3.Error
+
+					if errors.As(err, &sqliteErr) && sqliteErr.ExtendedCode == sqlite3.ErrConstraintUnique {
+						return "", fmt.Errorf("%s: %w", op, st.ErrPromoCodeExists)
+					}
+
+					return "", fmt.Errorf("%s: %w", op, err)
+				}
+
 			} else {
 				return "client was not found", nil
 			}
@@ -460,50 +645,26 @@ func (s *Storage) SavePromoCode(ctx context.Context, name string, typeDiscount i
 }
 
 func (s *Storage) SavePersonalPromoCode(ctx context.Context, idClient int32, idGroup int32,
-	namePromoCode string) (string, error) {
+	namePromoCode string, typeDiscount int32, valueDiscount int32, dateStartActive string, dateFinishActive string) (string, error) {
 	const op = "Storage.SQLite.SavePersonalPromoCode"
 
 	err := s.CheckContainClient(ctx, idClient)
 	if err != nil {
-		return "", fmt.Errorf("%s: %w", op, err)
+		return "", fmt.Errorf("%s: %w", op, st.ErrClientFound)
 	}
 
 	err = s.CheckContainGroup(ctx, idGroup)
 	if err != nil {
-		return "", fmt.Errorf("%s: %w", op, err)
+		return "", fmt.Errorf("%s: %w", op, st.ErrGroupFound)
 	}
 
-	err = s.CheckContainPromoCode(ctx, namePromoCode)
-	if err != nil {
-		return "", fmt.Errorf("%s: %w", op, err)
-	}
-
-	stmt, err := s.db.Prepare("SELECT Id FROM PromoCodes WHERE Name = ?")
-	if err != nil {
-		return "", fmt.Errorf("%s: %w", op, err)
-	}
-
-	row := stmt.QueryRowContext(ctx, namePromoCode)
-
-	var promoCode Models.PromoCode
-	err = row.Scan(&promoCode.Id)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return "", fmt.Errorf("%s: %w", op, st.ErrPromoCodeFound)
-		}
-
-		return "", fmt.Errorf("%s: %w", op, err)
-	}
-
-	result := strconv.Itoa(int(promoCode.Id))
-
-	stmt, err = s.db.Prepare("INSERT INTO PersonalPromoCodes(ClientFK, GroupFK, PromoCodeFK) VALUES(?, ?, ?)")
+	stmt, err := s.db.Prepare("INSERT INTO PersonalPromoCodes(ClientFK, GroupFK, NamePromoCode, TypeDiscountFK, ValueDiscount, DateStartActive, DateFinishActive) VALUES(?, ?, ?, ?, ?, ?, ?)")
 	if err != nil {
 		return "", fmt.Errorf("%s: %w", op, err)
 	}
 
 	// Выполняем запрос, передав параметры
-	_, err = stmt.ExecContext(ctx, idClient, idGroup, result)
+	_, err = stmt.ExecContext(ctx, idClient, idGroup, namePromoCode, typeDiscount, valueDiscount, dateStartActive, dateFinishActive)
 	if err != nil {
 		var sqliteErr sqlite3.Error
 
@@ -865,7 +1026,24 @@ func (s *Storage) CheckContainClient(ctx context.Context, idClient int32) error 
 	}
 	return nil
 }
+func (s *Storage) CheckContainIdPromoCode(ctx context.Context, idPromoCode int32) error {
+	const op = "Storage.SQLite.CheckContainIdPromoCode"
+	statement, err := s.db.Prepare("SELECT Id FROM PromoCodes WHERE Id = ?")
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
 
+	res := statement.QueryRowContext(ctx, idPromoCode)
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+	var dataFromDB int32
+	err = res.Scan(&dataFromDB)
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+	return nil
+}
 func (s *Storage) CheckContainGroup(ctx context.Context, elementForSearch int32) error {
 	const op = "Storage.SQLite.CheckContainGroup"
 	statement, err := s.db.Prepare("SELECT Id FROM TypesOfGroups WHERE Id = ?")

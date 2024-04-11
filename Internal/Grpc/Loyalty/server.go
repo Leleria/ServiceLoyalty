@@ -18,6 +18,7 @@ type ServerAPI struct {
 	loyalty Loyalty
 }
 
+//go:generate go run github.com/vektra/mockery/v2@v2.20.2 --name=Loyalty
 type Loyalty interface {
 	AddNewPromoCode(
 		ctx context.Context,
@@ -37,7 +38,9 @@ type Loyalty interface {
 	ChangeDateStartActivePromoCode(ctx context.Context, name string, dateStartActive string) (result string, err error)
 	ChangeDateFinishActivePromoCode(ctx context.Context, name string, dateFinish string) (result string, err error)
 	ChangeMaxCountUsesPromoCode(ctx context.Context, name string, maxCountUses int32) (result string, err error)
-	AddPersonalPromoCode(ctx context.Context, idClient int32, idGroup int32, namePromoCode string) (result string, err error)
+	AddPersonalPromoCode(ctx context.Context, idClient int32, idGroup int32, namePromoCode string,
+		typeDiscount int32, valueDiscount int32, dateStartActive string, dateFinishActive string) (
+		result string, err error)
 
 	SettingUpBudget(ctx context.Context, typeCashBack int32, condition string, valueBudget int32) (result string, err error)
 	ChangeBudgetCashBack(ctx context.Context, idCashBack int32, budget int32) (result string, err error)
@@ -52,6 +55,26 @@ type Loyalty interface {
 	CalculatePriceWithBonuses(ctx context.Context, idClient int32, amountProduct float32) (
 		result string, finalAmountProduct float32, numberBonusesDebited float32, err error)
 	DebitingPromoBonuses(ctx context.Context, idClient int32, paymentStatus bool) (result string, err error)
+	AccrualBonusesCashback(ctx context.Context, idClient int32, idCashBack int32) (result string, err error)
+}
+
+func (s *ServerAPI) AccrualBonusesCashback(ctx context.Context,
+	in *sl.AccrualBonusesCashbackRequest) (*sl.AccrualBonusesCashbackResponse, error) {
+	if !CheckIdForTable(in.GetIdClient()) {
+		return nil, status.Error(codes.InvalidArgument, "incorrect id client")
+	}
+	if !CheckIdForTable(in.GetIdCashBack()) {
+		return nil, status.Error(codes.InvalidArgument, "incorrect id cashback")
+	}
+
+	result, err := s.loyalty.AccrualBonusesCashback(ctx, in.GetIdClient(), in.GetIdCashBack())
+	if err != nil {
+		if errors.Is(err, Storage.ErrCashBackExists) {
+			return nil, status.Error(codes.NotFound, "cashback not found")
+		}
+		return nil, status.Error(codes.Internal, "failed")
+	}
+	return &sl.AccrualBonusesCashbackResponse{Result: result}, nil
 }
 
 func (s *ServerAPI) DebitingPromoBonuses(ctx context.Context,
@@ -207,8 +230,12 @@ func (s *ServerAPI) GetAllCashBack(ctx context.Context,
 func (s *ServerAPI) SettingUpBudget(ctx context.Context,
 	in *sl.SettingUpBudgetRequest) (*sl.SettingUpBudgetResponse, error) {
 
-	if CheckArgsForSettingUpBudget(in) {
-		return nil, status.Error(codes.InvalidArgument, "incorrect data")
+	flag, message := CheckArgsForSettingUpBudget(in)
+	if flag && message == "budget" {
+		return nil, status.Error(codes.InvalidArgument, "incorrect value budget")
+	}
+	if flag && message == "type" {
+		return nil, status.Error(codes.InvalidArgument, "incorrect type cashback")
 	}
 	result, err := s.loyalty.SettingUpBudget(ctx, in.GetTypeCashBack(), in.GetCondition(), in.GetValueBudget())
 	if err != nil {
@@ -223,13 +250,46 @@ func (s *ServerAPI) SettingUpBudget(ctx context.Context,
 func (s *ServerAPI) AddPersonalPromoCode(ctx context.Context,
 	in *sl.AddPersonalPromoCodeRequest) (*sl.AddPersonalPromoCodeResponse, error) {
 
-	if CheckArgsForAddedPersonalPromoCodeToDB(in) {
-		return nil, status.Error(codes.InvalidArgument, "incorrect data")
+	flag, message := CheckArgsForAddedPersonalPromoCodeToDB(in)
+	if flag && message == "client" {
+		return nil, status.Error(codes.InvalidArgument, "incorrect id client")
 	}
-	result, err := s.loyalty.AddPersonalPromoCode(ctx, in.GetIdClient(), in.GetIdGroup(), in.GetNamePromoCode())
+	if flag && message == "group" {
+		return nil, status.Error(codes.InvalidArgument, "incorrect id group")
+	}
+	if flag && message == "name" {
+		return nil, status.Error(codes.InvalidArgument, "incorrect name")
+	}
+	if flag && message == "type" {
+		return nil, status.Error(codes.InvalidArgument, "incorrect type discount")
+	}
+	if flag && message == "value" {
+		return nil, status.Error(codes.InvalidArgument, "value discount cannot be less then 0")
+	}
+	if flag && message == "value percent" {
+		return nil, status.Error(codes.InvalidArgument, "percentage discount cannot be more than 100")
+	}
+	if flag && message == "format date start" {
+		return nil, status.Error(codes.InvalidArgument, "incorrect format date start")
+	}
+	if flag && message == "format date finish" {
+		return nil, status.Error(codes.InvalidArgument, "incorrect format date finish")
+	}
+	if flag && message == "date start > date finish" {
+		return nil, status.Error(codes.InvalidArgument, "date start cannot be more then date finish")
+	}
+
+	result, err := s.loyalty.AddPersonalPromoCode(ctx, in.GetIdClient(), in.GetIdGroup(), in.GetNamePromoCode(), in.TypeDiscount, in.ValueDiscount,
+		in.DateStartActive, in.DateFinishActive)
 	if err != nil {
-		if errors.Is(err, Storage.ErrPromoCodeExists) {
+		if errors.Is(err, Storage.ErrPersonalPromoCodeExists) {
 			return nil, status.Error(codes.AlreadyExists, "personal promo code exists")
+		}
+		if errors.Is(err, Storage.ErrClientFound) {
+			return nil, status.Error(codes.AlreadyExists, "client not found")
+		}
+		if errors.Is(err, Storage.ErrGroupFound) {
+			return nil, status.Error(codes.AlreadyExists, "group not found")
 		}
 		return nil, status.Error(codes.Internal, "incorrect data")
 	}
@@ -245,7 +305,7 @@ func (s *ServerAPI) GetPromoCode(ctx context.Context,
 
 	result, err := s.loyalty.GetPromoCode(ctx, in.GetName())
 	if err != nil {
-		if errors.Is(err, Storage.ErrPromoCodeExists) {
+		if errors.Is(err, Storage.ErrPromoCodeFound) {
 			return nil, status.Error(codes.NotFound, "promo code not found")
 		}
 		return nil, status.Error(codes.Internal, "incorrect name")
@@ -257,7 +317,7 @@ func (s *ServerAPI) GetAllPromoCodes(ctx context.Context,
 
 	result, err := s.loyalty.GetAllPromoCodes(ctx)
 	if err != nil {
-		if errors.Is(err, Storage.ErrPromoCodeExists) {
+		if errors.Is(err, Storage.ErrCashBackFound) {
 			return nil, status.Error(codes.NotFound, "promo code not found")
 		}
 		return nil, status.Error(codes.Internal, "incorrect name")
@@ -387,12 +447,34 @@ func (s *ServerAPI) DeletePromoCode(ctx context.Context,
 	return &sl.DeletePromoCodeResponse{Result: result}, nil
 }
 func (s *ServerAPI) AddNewPromoCode(
-	ctx context.Context,
-	in *sl.AddNewPromoCodeRequest) (*sl.AddNewPromoCodeResponse, error) {
+	ctx context.Context, in *sl.AddNewPromoCodeRequest) (*sl.AddNewPromoCodeResponse, error) {
 
-	if CheckArgsForAddedToDB(in) {
-		return nil, status.Error(codes.InvalidArgument, "incorrect data")
+	flag, message := CheckArgsForAddedToDB(in)
+	if flag && message == "name" {
+		return nil, status.Error(codes.InvalidArgument, "incorrect name")
 	}
+	if flag && message == "type" {
+		return nil, status.Error(codes.InvalidArgument, "incorrect type discount")
+	}
+	if flag && message == "value" {
+		return nil, status.Error(codes.InvalidArgument, "value discount cannot be less then 0")
+	}
+	if flag && message == "value percent" {
+		return nil, status.Error(codes.InvalidArgument, "percentage discount cannot be more than 100")
+	}
+	if flag && message == "max count" {
+		return nil, status.Error(codes.InvalidArgument, "max count uses cannot be less then 0")
+	}
+	if flag && message == "format date start" {
+		return nil, status.Error(codes.InvalidArgument, "incorrect format date start")
+	}
+	if flag && message == "format date finish" {
+		return nil, status.Error(codes.InvalidArgument, "incorrect format date finish")
+	}
+	if flag && message == "date start > date finish" {
+		return nil, status.Error(codes.InvalidArgument, "date start cannot be more then date finish")
+	}
+
 	result, err := s.loyalty.AddNewPromoCode(ctx, in.GetName(), in.GetTypeDiscount(), in.GetValueDiscount(),
 		in.GetDateStartActive(), in.GetDateFinishActive(), in.GetMaxCountUses())
 	if err != nil {
@@ -407,62 +489,87 @@ func (s *ServerAPI) AddNewPromoCode(
 func Register(gRPCServer *grpc.Server, loyalty Loyalty) {
 	sl.RegisterLoyaltyServiceServer(gRPCServer, &ServerAPI{loyalty: loyalty})
 }
-func CheckArgsForAddedToDB(request *sl.AddNewPromoCodeRequest) bool {
+func CheckArgsForAddedToDB(request *sl.AddNewPromoCodeRequest) (bool, string) {
 
 	if !CheckName(request.Name) {
-		return true
+		return true, "name"
 	}
 	if request.TypeDiscount != 1 && request.TypeDiscount != 2 {
-		return true
+		return true, "type"
 	}
 	if request.ValueDiscount <= 0 {
-		return true
+		return true, "value"
 	}
 	if request.TypeDiscount == 1 && request.ValueDiscount > 100 {
-		return true
+		return true, "value percent"
 	}
 	if request.MaxCountUses <= 0 {
-		return true
-	}
-	if request.DateStartActive > request.DateFinishActive {
-		return true
+		return true, "max count"
 	}
 	layout := "2006-01-02"
 	timeStart, err := time.Parse(layout, request.DateStartActive)
 	if err != nil {
-		return true
+		return true, "format date start"
 	}
 	timeFinish, err := time.Parse(layout, request.DateFinishActive)
 	if err != nil {
-		return true
+		return true, "format date finish"
 	}
+	if request.DateStartActive > request.DateFinishActive {
+		return true, "date start > date finish"
+	}
+
 	request.DateStartActive = timeStart.Format(layout)
 	request.DateFinishActive = timeFinish.Format(layout)
-	return false
+	return false, ""
 } //true its error
 
-func CheckArgsForAddedPersonalPromoCodeToDB(request *sl.AddPersonalPromoCodeRequest) bool {
+func CheckArgsForAddedPersonalPromoCodeToDB(request *sl.AddPersonalPromoCodeRequest) (bool, string) {
 
 	if !CheckName(request.NamePromoCode) {
-		return true
+		return true, "name"
 	}
 	if request.IdClient <= 0 {
-		return true
+		return true, "client"
 	}
 	if request.IdGroup <= 0 {
-		return true
+		return true, "group"
 	}
-	return false
+	if request.TypeDiscount != 1 && request.TypeDiscount != 2 {
+		return true, "type"
+	}
+	if request.ValueDiscount <= 0 {
+		return true, "value"
+	}
+	if request.TypeDiscount == 1 && request.ValueDiscount > 100 {
+		return true, "value percent"
+	}
+	layout := "2006-01-02"
+	timeStart, err := time.Parse(layout, request.DateStartActive)
+	if err != nil {
+		return true, "format date start"
+	}
+	timeFinish, err := time.Parse(layout, request.DateFinishActive)
+	if err != nil {
+		return true, "format date finish"
+	}
+	if request.DateStartActive > request.DateFinishActive {
+		return true, "date start > date finish"
+	}
+
+	request.DateStartActive = timeStart.Format(layout)
+	request.DateFinishActive = timeFinish.Format(layout)
+	return false, ""
 } //true its error
 
-func CheckArgsForSettingUpBudget(request *sl.SettingUpBudgetRequest) bool {
+func CheckArgsForSettingUpBudget(request *sl.SettingUpBudgetRequest) (bool, string) {
 	if request.ValueBudget <= 0 {
-		return true
+		return true, "budget"
 	}
 	if request.TypeCashBack <= 0 {
-		return true
+		return true, "type"
 	}
-	return false
+	return false, ""
 } //true its error
 
 func CheckName(name string) bool {
