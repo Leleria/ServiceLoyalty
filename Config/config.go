@@ -8,7 +8,7 @@ import (
 )
 
 type Config struct {
-	Env           string     `yaml:"env"env-default:"local"`
+	Env           string     `yaml:"env" env-default:"local"`
 	StoragePath   string     `yaml:"storage_path" env-required:"true"`
 	GRPC          GRPCConfig `yaml:"grpc"`
 	MigrationPath string
@@ -25,11 +25,6 @@ func MustLoad() *Config {
 		panic("config path is empty")
 	}
 
-	return MustLoadByPath(configPath)
-}
-
-func MustLoadByPath(configPath string) *Config {
-
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
 		panic("config file does not exist: " + configPath)
 	}
@@ -43,7 +38,7 @@ func MustLoadByPath(configPath string) *Config {
 func fetchConfigPath() string {
 	var res string
 
-	flag.StringVar(&res, "config", "C:/Users/kit/GolandProjects/ServiceLoyalty/Config/config_local.yaml", "path to config file")
+	flag.StringVar(&res, "config", "ServiceLoyalty/Config/config_local.yaml", "path to config file")
 	flag.Parse()
 	if res == "" {
 		res = os.Getenv("CONFIG_PATH")

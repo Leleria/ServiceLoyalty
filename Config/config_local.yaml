@@ -1,5 +1,5 @@
 env: "local"
-storage_path: "C:/Users/kit/GolandProjects/ServiceLoyalty/Storage/ServiceLoyaltyDB.db"
+storage_path: "ServiceLoyalty/Storage/ServiceLoyaltyDB.db"
 grpc:
   port: 44044
   timeout: 5s
