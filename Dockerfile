@@ -1,4 +1,4 @@
-FROM golang:1.21-buster
+FROM golang:latest
 
 RUN go version
 ENV GOPATH=/

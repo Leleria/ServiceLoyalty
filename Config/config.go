@@ -38,7 +38,7 @@ func MustLoad() *Config {
 func fetchConfigPath() string {
 	var res string
 
-	flag.StringVar(&res, "config", "ServiceLoyalty/Config/config_local.yaml", "path to config file")
+	flag.StringVar(&res, "config", "C:/Users/kit/GolandProjects/ServiceLoyalty/Config/config_local.yaml", "path to config file")
 	flag.Parse()
 	if res == "" {
 		res = os.Getenv("CONFIG_PATH")

@@ -1,5 +1,5 @@
 env: "local"
-storage_path: "ServiceLoyalty/Storage/ServiceLoyaltyDB.db"
+storage_path: "./Storage/ServiceLoyaltyDB.db"
 grpc:
-  port: 44044
+  port: 8080
   timeout: 5s
