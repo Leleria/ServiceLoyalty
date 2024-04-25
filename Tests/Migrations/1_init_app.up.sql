@@ -1,6 +1,6 @@
     insert into CashBackTypes (NameType)
     values ('за покупки'),
-           ('за отзывы')
+
         ON CONFLICT DO NOTHING;
 
     insert into TypesOfDiscounts (NameType)
