@@ -6,13 +6,7 @@ services:
     ports:
       - "44044:44044"
     volumes:
-      - ./Storage:/app/Storage
-    environment:
-      DATABASE_URL: "./Storage/ServiceLoyaltyDB.db"
+      -  db_data:/app/Storage
+volumes:
+    db_data:
 
-#  db:
-#    image: nouchka/sqlite3
-#    volumes:
-#    - loyalty-data:/Storage
-#volumes:
-#  loyalty-data:
