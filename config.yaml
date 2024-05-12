@@ -1,0 +1,6 @@
+  proto: "E:/ДИПЛОМ/ServiceLoyalty.proto"
+  call: "service.LoyaltyService/AccrualBonusesCashback"
+  data: {idClient: 1, idCashBack: 1}
+  total: 100000
+  concurrency: 1000
+
