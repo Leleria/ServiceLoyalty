@@ -18,6 +18,8 @@ CREATE TABLE IF NOT EXISTS CashBack (
     ValueCondition	       TEXT	NOT NULL,
     FOREIGN KEY(TypeCashBackFK) REFERENCES CashBackTypes(Id)
 );
+CREATE INDEX IF NOT EXISTS idxBudget ON CashBack (Budget);
+CREATE INDEX IF NOT EXISTS idxIdBudget ON CashBack (Id);
 
 CREATE TABLE IF NOT EXISTS UserActions (
     Id	               INTEGER PRIMARY KEY,
@@ -44,7 +46,10 @@ CREATE TABLE IF NOT EXISTS Clients (
     CountBonuses INTEGER NOT NULL,
     LoyaltyLevelFK INTEGER NOT NULL,
     FOREIGN KEY(LoyaltyLevelFK) REFERENCES LoyaltyLevels(Id)
+
 );
+CREATE INDEX IF NOT EXISTS idxCountBonuses ON Clients (CountBonuses);
+CREATE INDEX IF NOT EXISTS idxIdClient ON Clients (Id);
 
 CREATE TABLE IF NOT EXISTS Operations (
     Id	               INTEGER PRIMARY KEY,

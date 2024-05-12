@@ -1,5 +1,6 @@
 env: "local"
-storage_path: "./Storage/ServiceLoyaltyDB.db"
+storage_path: "./Storage/ServiceLoyaltyDB.db?_journal_mode=WAL"
 grpc:
-  port: 8080
-  timeout: 5s
+  port: 44044
+  timeout: 10m
+

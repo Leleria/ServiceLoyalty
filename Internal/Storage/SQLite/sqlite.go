@@ -27,8 +27,383 @@ func New(storagePath string) (*Storage, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
-
 	return &Storage{db: db}, nil
+}
+
+func (s *Storage) GetClient(ctx context.Context, idClient int32) (string, error) {
+	const op = "Storage.Sqlite.GetClient"
+
+	err := s.CheckContainClient(ctx, idClient)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	stmt, err := s.db.Prepare("select Name, Email, Clients.CountBonuses, LoyaltyLevels.NameLevel FROM Clients INNER JOIN LoyaltyLevels ON Clients.LoyaltyLevelFK = LoyaltyLevels.Id WHERE Clients.Id = ?")
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	row := stmt.QueryRowContext(ctx, idClient)
+
+	var client Models.Client
+	var loyaltyLevel Models.LoyaltyLevel
+	err = row.Scan(&client.Name, &client.Email, &client.CountBonuses, &loyaltyLevel.NameLevel)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", fmt.Errorf("%s: %w", op, st.ErrClientFound)
+		}
+
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	result := client.Name + " " + client.Email + " " + strconv.Itoa(int(client.CountBonuses)) + " " + loyaltyLevel.NameLevel
+	return result, nil
+}
+
+func (s *Storage) GetAllClients(ctx context.Context) (string, error) {
+	const op = "Storage.Sqlite.GetAllClients"
+
+	stmt, err := s.db.Prepare("select Name, Email, Clients.CountBonuses, LoyaltyLevels.NameLevel FROM Clients INNER JOIN LoyaltyLevels ON Clients.LoyaltyLevelFK = LoyaltyLevels.Id")
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	row, err := stmt.QueryContext(ctx)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	var result string
+	for row.Next() {
+		var client Models.Client
+		var loyaltyLevel Models.LoyaltyLevel
+		err := row.Scan(&client.Name, &client.Email, &client.CountBonuses, &loyaltyLevel.NameLevel)
+
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return "", fmt.Errorf("%s: %w", op, st.ErrClientFound)
+			}
+			return "", fmt.Errorf("%s: %w", op, err)
+		}
+
+		result = result + client.Name + " " + client.Email + " " + strconv.Itoa(int(client.CountBonuses)) + " " + loyaltyLevel.NameLevel + ", "
+	}
+
+	return result, nil
+}
+
+func (s *Storage) GetOperation(ctx context.Context, idOperation int32) (string, error) {
+	const op = "Storage.Sqlite.GetOperation"
+
+	err := s.CheckContainOperation(ctx, idOperation)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	stmt, err := s.db.Prepare("select TypesOperations.NameTypeOperation, Clients.Name, Operations.CountBonuses, DateAndTimeOperation FROM Operations " +
+		"INNER JOIN TypesOperations ON Operations.TypeOperationFK = TypesOperations.Id INNER JOIN Clients ON Operations.ClientFK = Clients.Id  WHERE Operations.Id = ?")
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	row := stmt.QueryRowContext(ctx, idOperation)
+
+	var operation Models.Operation
+	var client Models.Client
+	var typeOperation Models.TypeOperation
+	err = row.Scan(&typeOperation.NameTypeOperation, &client.Name, &operation.CountBonuses, &operation.DateAndTimeOperation)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", fmt.Errorf("%s: %w", op, st.ErrOperationFound)
+		}
+
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	result := typeOperation.NameTypeOperation + " " + client.Name + " " + strconv.Itoa(int(operation.CountBonuses)) + " " + operation.DateAndTimeOperation
+	return result, nil
+}
+
+func (s *Storage) GetAllOperations(ctx context.Context) (string, error) {
+	const op = "Storage.Sqlite.GetAllOperations"
+
+	stmt, err := s.db.Prepare("select TypesOperations.NameTypeOperation, Clients.Name, Operations.CountBonuses, DateAndTimeOperation FROM Operations " +
+		"INNER JOIN TypesOperations ON Operations.TypeOperationFK = TypesOperations.Id INNER JOIN Clients ON Operations.ClientFK = Clients.Id")
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	row, err := stmt.QueryContext(ctx)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	var result string
+	for row.Next() {
+		var operation Models.Operation
+		var client Models.Client
+		var typeOperation Models.TypeOperation
+		err := row.Scan(&typeOperation.NameTypeOperation, &client.Name, &operation.CountBonuses, &operation.DateAndTimeOperation)
+
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return "", fmt.Errorf("%s: %w", op, st.ErrOperationFound)
+			}
+			return "", fmt.Errorf("%s: %w", op, err)
+		}
+
+		result = result + typeOperation.NameTypeOperation + " " + client.Name + " " + strconv.Itoa(int(operation.CountBonuses)) + " " + operation.DateAndTimeOperation + ", "
+	}
+
+	return result, nil
+}
+
+func (s *Storage) ChangeClientPersonalPromoCode(ctx context.Context, name string, idClient int32) (string, error) {
+	const op = "Storage.SQLite.ChangeClientPersonalPromoCode"
+
+	err := s.CheckContainPersonalPromoCode(ctx, name)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	statement, err := s.db.Prepare(`SELECT NamePromoCode FROM PersonalPromoCodes WHERE ClientFK = ?`)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	res := statement.QueryRow(idClient)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	var dataFromDB string
+	err = res.Scan(&dataFromDB)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	stmt, err := s.db.Prepare("UPDATE PersonalPromoCodes SET ClientFK = ? WHERE NamePromoCode = ?")
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	// Выполняем запрос, передав параметры
+	_, err = stmt.ExecContext(ctx, idClient, name)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	return "complete", nil
+}
+
+func (s *Storage) ChangeGroupPersonalPromoCode(ctx context.Context, name string, idGroup int32) (string, error) {
+	const op = "Storage.SQLite.ChangeGroupPersonalPromoCode"
+
+	err := s.CheckContainPersonalPromoCode(ctx, name)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	statement, err := s.db.Prepare(`SELECT NamePromoCode FROM PersonalPromoCodes WHERE GroupFK = ?`)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	res := statement.QueryRow(idGroup)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	var dataFromDB string
+	err = res.Scan(&dataFromDB)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	stmt, err := s.db.Prepare("UPDATE PersonalPromoCodes SET GroupFK = ? WHERE NamePromoCode = ?")
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	// Выполняем запрос, передав параметры
+	_, err = stmt.ExecContext(ctx, idGroup, name)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	return "complete", nil
+}
+func (s *Storage) ChangeNamePersonalPromoCode(ctx context.Context, name string, newName string) (string, error) {
+	const op = "Storage.SQLite.ChangeNamePersonalPromoCode"
+
+	err := s.CheckContainPersonalPromoCode(ctx, name)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	stmt, err := s.db.Prepare("UPDATE PersonalPromoCodes SET NamePromoCode = ? WHERE NamePromoCode = ?")
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	// Выполняем запрос, передав параметры
+	_, err = stmt.ExecContext(ctx, newName, name)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	return "complete", nil
+}
+func (s *Storage) ChangeTypeDiscountPersonalPromoCode(ctx context.Context, name string, typeDiscount int32) (string, error) {
+	const op = "Storage.SQLite.ChangeTypeDiscountPromoCode"
+
+	err := s.CheckContainPersonalPromoCode(ctx, name)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	statement, err := s.db.Prepare(`SELECT ValueDiscount FROM PersonalPromoCodes WHERE NamePromoCode = ?`)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	res := statement.QueryRow(name)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	var valueDiscount int
+	err = res.Scan(&valueDiscount)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	if valueDiscount > 100 && typeDiscount == 1 {
+		return "", fmt.Errorf("%s: %w", op, st.ErrTypeDiscount)
+	}
+
+	stmt, err := s.db.Prepare("UPDATE PersonalPromoCodes SET TypeDiscountFK = ? WHERE NamePromoCode = ?")
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	// Выполняем запрос, передав параметры
+	_, err = stmt.ExecContext(ctx, typeDiscount, name)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	return "complete", nil
+}
+func (s *Storage) ChangeValueDiscountPersonalPromoCode(ctx context.Context, name string, valueDiscount int32) (string, error) {
+	const op = "Storage.SQLite.ChangeValueDiscountPersonalPromoCode"
+
+	err := s.CheckContainPersonalPromoCode(ctx, name)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	statement, err := s.db.Prepare(`SELECT TypeDiscountFK FROM PersonalPromoCodes WHERE NamePromoCode = ?`)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	res := statement.QueryRow(name)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	var typeDiscount int
+	err = res.Scan(&typeDiscount)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	if typeDiscount == 1 && valueDiscount > 100 {
+		return "", fmt.Errorf("%s: %w", op, st.ErrTypeDiscount)
+	}
+
+	stmt, err := s.db.Prepare("UPDATE PersonalPromoCodes SET ValueDiscount = ? WHERE NamePromoCode = ?")
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	// Выполняем запрос, передав параметры
+	_, err = stmt.ExecContext(ctx, valueDiscount, name)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	return "complete", nil
+}
+func (s *Storage) ChangeDateStartActivePersonalPromoCode(ctx context.Context, name string, dateStartActive string) (string, error) {
+	const op = "Storage.SQLite.ChangeDateStartActivePersonalPromoCode"
+
+	err := s.CheckContainPersonalPromoCode(ctx, name)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	statement, err := s.db.Prepare(`SELECT DateFinishActive FROM PersonalPromoCodes WHERE NamePromoCode = ?`)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	res := statement.QueryRow(name)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	var dateFinishActive string
+	err = res.Scan(&dateFinishActive)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	if dateStartActive > dateFinishActive {
+		return "", fmt.Errorf("%s: %w", op, st.ErrDateActive)
+	}
+
+	stmt, err := s.db.Prepare("UPDATE PersonalPromoCodes SET DateStartActive = ? WHERE NamePromoCode = ?")
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	// Выполняем запрос, передав параметры
+	_, err = stmt.ExecContext(ctx, dateStartActive, name)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	return "complete", nil
+}
+func (s *Storage) ChangeDateFinishActivePersonalPromoCode(ctx context.Context, name string, dateFinishActive string) (string, error) {
+	const op = "Storage.SQLite.ChangeDateFinishActivePersonalPromoCode"
+
+	err := s.CheckContainPersonalPromoCode(ctx, name)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	statement, err := s.db.Prepare(`SELECT DateStartActive FROM PersonalPromoCodes WHERE NamePromoCode = ?`)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	res := statement.QueryRow(name)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	var dateStartActive string
+	err = res.Scan(&dateStartActive)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	if dateFinishActive < dateStartActive {
+		return "", fmt.Errorf("%s: %w", op, st.ErrDateActive)
+	}
+
+	stmt, err := s.db.Prepare("UPDATE PersonalPromoCodes SET DateFinishActive = ? WHERE NamePromoCode = ?")
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	// Выполняем запрос, передав параметры
+	_, err = stmt.ExecContext(ctx, dateFinishActive, name)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	return "complete", nil
 }
 
 func (s *Storage) AccrualBonusesCashback(ctx context.Context, idClient int32, idCashBack int32) (string, error) {
@@ -140,18 +515,18 @@ func (s *Storage) CalculatePriceWithPromoCode(ctx context.Context, idClient int3
 		return "", 0, 0, fmt.Errorf("%s: %w", op, err)
 	}
 
-	resultIdPromoCode := promoCode.Id
+	//resultIdPromoCode := promoCode.Id
 	resultTypeDiscountPromoCode := typeDiscountPromoCode.NameType
 	resultValueDiscountPromoCode := promoCode.ValueDiscount
 	resultDateFinishActivePromoCode := promoCode.DateFinishActive
 	resultMaxCountUsesPromoCode := promoCode.MaxCountUses
 
-	stmt, err = s.db.Prepare("select Id FROM PersonalPromoCodes WHERE ClientFK = ? AND PromoCodeFK = ?")
+	stmt, err = s.db.Prepare("select Id FROM PersonalPromoCodes WHERE ClientFK = ? AND NamePromoCode = ?")
 	if err != nil {
 		return "", 0, 0, fmt.Errorf("%s: %w", op, err)
 	}
 
-	row = stmt.QueryRowContext(ctx, idClient, resultIdPromoCode)
+	row = stmt.QueryRowContext(ctx, idClient, namePromoCode)
 	var idPersonal int32
 
 	var finalAmount float32
@@ -742,6 +1117,28 @@ func (s *Storage) DeletePromoCode(ctx context.Context, name string) (string, err
 	return "complete", nil
 }
 
+func (s *Storage) DeletePersonalPromoCode(ctx context.Context, name string) (string, error) {
+	const op = "Storage.SQLite.DeletePersonalPromoCode"
+
+	err := s.CheckContainPersonalPromoCode(ctx, name)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	stmt, err := s.db.Prepare("DELETE FROM PersonalPromoCodes WHERE NamePromoCode = ?")
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	// Выполняем запрос, передав параметры
+	_, err = stmt.ExecContext(ctx, name)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	return "complete", nil
+}
+
 func (s *Storage) GetPromoCode(ctx context.Context, name string) (string, error) {
 	const op = "Storage.Sqlite.GetPromoCode"
 
@@ -803,6 +1200,79 @@ func (s *Storage) GetAllPromoCodes(ctx context.Context) (string, error) {
 
 		result = result + promoCode.Name + " " + typeDiscountPromoCode.NameType + " " + strconv.Itoa(int(promoCode.ValueDiscount)) + " " + promoCode.DateStartActive +
 			" " + promoCode.DateFinishActive + " " + strconv.Itoa(int(promoCode.MaxCountUses)) + ", "
+	}
+
+	return result, nil
+}
+
+func (s *Storage) GetPersonalPromoCode(ctx context.Context, name string) (string, error) {
+	const op = "Storage.Sqlite.GetPersonalPromoCode"
+
+	err := s.CheckContainPersonalPromoCode(ctx, name)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	stmt, err := s.db.Prepare("select Clients.Name, TypesOfGroups.NameType, TypesOfDiscounts.NameType, ValueDiscount, DateStartActive, DateFinishActive FROM PersonalPromoCodes " +
+		" INNER JOIN Clients ON PersonalPromoCodes.ClientFK = Clients.Id INNER JOIN TypesOfGroups ON PersonalPromoCodes.GroupFK = TypesOfGroups.Id " +
+		"INNER JOIN TypesOfDiscounts ON PersonalPromoCodes.TypeDiscountFK = TypesOfDiscounts.Id WHERE PersonalPromoCodes.NamePromoCode = ?")
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	row := stmt.QueryRowContext(ctx, name)
+
+	var personalPromoCode Models.PersonalPromoCode
+	var typeDiscountPersonalPromoCode Models.TypeDiscount
+	var clientPersonalPromoCode Models.Client
+	var groupPersonalPromoCode Models.Group
+	err = row.Scan(&clientPersonalPromoCode.Name, &groupPersonalPromoCode.NameType, &typeDiscountPersonalPromoCode.NameType, &personalPromoCode.ValueDiscount, &personalPromoCode.DateStartActive,
+		&personalPromoCode.DateFinishActive)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", fmt.Errorf("%s: %w", op, st.ErrPromoCodeFound)
+		}
+
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	result := clientPersonalPromoCode.Name + " " + groupPersonalPromoCode.NameType + " " + typeDiscountPersonalPromoCode.NameType + " " + strconv.Itoa(int(personalPromoCode.ValueDiscount)) + " " + personalPromoCode.DateStartActive +
+		" " + personalPromoCode.DateFinishActive
+	return result, nil
+}
+
+func (s *Storage) GetAllPersonalPromoCodes(ctx context.Context) (string, error) {
+	const op = "Storage.Sqlite.GetAllPromoCodes"
+
+	stmt, err := s.db.Prepare("select NamePromoCode, Clients.Name, TypesOfGroups.NameType, TypesOfDiscounts.NameType, ValueDiscount, DateStartActive, DateFinishActive FROM PersonalPromoCodes " +
+		" INNER JOIN Clients ON PersonalPromoCodes.ClientFK = Clients.Id INNER JOIN TypesOfGroups ON PersonalPromoCodes.GroupFK = TypesOfGroups.Id " +
+		"INNER JOIN TypesOfDiscounts ON PersonalPromoCodes.TypeDiscountFK = TypesOfDiscounts.Id")
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	row, err := stmt.QueryContext(ctx)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	var result string
+	for row.Next() {
+		var personalPromoCode Models.PersonalPromoCode
+		var typeDiscountPersonalPromoCode Models.TypeDiscount
+		var clientPersonalPromoCode Models.Client
+		var groupPersonalPromoCode Models.Group
+		err := row.Scan(&personalPromoCode.NamePromoCode, &clientPersonalPromoCode.Name, &groupPersonalPromoCode.NameType, &typeDiscountPersonalPromoCode.NameType, &personalPromoCode.ValueDiscount, &personalPromoCode.DateStartActive,
+			&personalPromoCode.DateFinishActive)
+
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return "", fmt.Errorf("%s: %w", op, st.ErrPromoCodeFound)
+			}
+			return "", fmt.Errorf("%s: %w", op, err)
+		}
+
+		result = result + personalPromoCode.NamePromoCode + " " + clientPersonalPromoCode.Name + " " + groupPersonalPromoCode.NameType + " " + typeDiscountPersonalPromoCode.NameType +
+			" " + strconv.Itoa(int(personalPromoCode.ValueDiscount)) + " " + personalPromoCode.DateStartActive +
+			" " + personalPromoCode.DateFinishActive + " " + ", "
 	}
 
 	return result, nil
@@ -989,6 +1459,24 @@ func (s *Storage) CheckContainPromoCode(ctx context.Context, elementForSearch st
 	}
 	return nil
 }
+func (s *Storage) CheckContainPersonalPromoCode(ctx context.Context, elementForSearch string) error {
+	const op = "Storage.SQLite.CheckContainPromoCode"
+	statement, err := s.db.Prepare("SELECT NamePromoCode FROM PersonalPromoCodes WHERE NamePromoCode = ?")
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	res := statement.QueryRowContext(ctx, elementForSearch)
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+	var dataFromDB string
+	err = res.Scan(&dataFromDB)
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+	return nil
+}
 func (s *Storage) CheckContainCashBack(ctx context.Context, elementForSearch int32) error {
 	const op = "Storage.SQLite.CheckContainCashBack"
 	statement, err := s.db.Prepare("SELECT Id FROM CashBack WHERE Id = ?")
@@ -1016,6 +1504,25 @@ func (s *Storage) CheckContainClient(ctx context.Context, idClient int32) error 
 	}
 
 	res := statement.QueryRowContext(ctx, idClient)
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+	var dataFromDB int32
+	err = res.Scan(&dataFromDB)
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+	return nil
+}
+
+func (s *Storage) CheckContainOperation(ctx context.Context, idOperation int32) error {
+	const op = "Storage.SQLite.CheckContainOperation"
+	statement, err := s.db.Prepare("SELECT Id FROM Operations WHERE Id = ?")
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	res := statement.QueryRowContext(ctx, idOperation)
 	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)
 	}

@@ -38,10 +38,22 @@ func MustLoad() *Config {
 func fetchConfigPath() string {
 	var res string
 
-	flag.StringVar(&res, "config", "C:/Users/kit/GolandProjects/ServiceLoyalty/Config/config_local.yaml", "path to config file")
+	flag.StringVar(&res, "config", "./Config/config_local.yaml", "path to config file")
 	flag.Parse()
 	if res == "" {
 		res = os.Getenv("CONFIG_PATH")
 	}
 	return res
 }
+
+//func MustLoadByPath(configPath string) *Config {
+//
+//	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+//		panic("config file does not exist: " + configPath)
+//	}
+//	var cfg Config
+//	if err := cleanenv.ReadConfig(configPath, &cfg); err != nil {
+//		panic("config path is empty: " + err.Error())
+//	}
+//	return &cfg
+//}

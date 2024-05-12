@@ -26,6 +26,23 @@ type PromoCodeChanger interface {
 	ChangeDateFinishActivePromoCode(ctx context.Context, name string, dateFinish string) (result string, err error)
 	ChangeMaxCountUsesPromoCode(ctx context.Context, name string, maxCountUses int32) (result string, err error)
 
+	DeletePersonalPromoCode(ctx context.Context, name string) (result string, err error)
+	ChangeClientPersonalPromoCode(ctx context.Context, name string, idClient int32) (result string, err error)
+	ChangeGroupPersonalPromoCode(ctx context.Context, name string, idGroup int32) (result string, err error)
+	ChangeNamePersonalPromoCode(ctx context.Context, name string, newName string) (result string, err error)
+	ChangeTypeDiscountPersonalPromoCode(ctx context.Context, name string, typeDiscount int32) (result string, err error)
+	ChangeValueDiscountPersonalPromoCode(ctx context.Context, name string, valueDiscount int32) (result string, err error)
+	ChangeDateStartActivePersonalPromoCode(ctx context.Context, name string, dateStartActive string) (result string, err error)
+	ChangeDateFinishActivePersonalPromoCode(ctx context.Context, name string, dateFinish string) (result string, err error)
+	GetPersonalPromoCode(ctx context.Context, name string) (result string, err error)
+	GetAllPersonalPromoCodes(ctx context.Context) (result string, err error)
+
+	GetClient(ctx context.Context, idClient int32) (result string, err error)
+	GetAllClients(ctx context.Context) (result string, err error)
+
+	GetOperation(ctx context.Context, idOperation int32) (result string, err error)
+	GetAllOperations(ctx context.Context) (result string, err error)
+
 	SaveSettingUpBudget(ctx context.Context, typeCashBack int32, condition string, valueBudget int32) (result string, err error)
 	ChangeBudgetCashBack(ctx context.Context, idCashBack int32, budget int32) (result string, err error)
 	ChangeTypeCashBack(ctx context.Context, idCashBack int32, typeCashBack int32) (result string, err error)
@@ -54,12 +71,193 @@ func New(log *slog.Logger,
 	}
 }
 
+func (l *Loyalty) GetClient(ctx context.Context, idClient int32) (result string, err error) {
+	const op = "Loyalty.GetClient"
+	log := l.log.With(
+		slog.String("op", op),
+		slog.String("id", strconv.Itoa(int(idClient))),
+	)
+	result, err = l.promoCodeChanger.GetClient(ctx, idClient)
+	if err != nil {
+		log.Error("failed to get client", Sl.Err(err))
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	log.Info("received client " + "\"" + strconv.Itoa(int(idClient)) + "\"")
+	return result, nil
+}
+
+func (l *Loyalty) GetAllClients(ctx context.Context) (result string, err error) {
+	const op = "Loyalty.GetAllClients"
+	log := l.log.With(
+		slog.String("op", op),
+	)
+	result, err = l.promoCodeChanger.GetAllClients(ctx)
+	if err != nil {
+		log.Error("failed to get all clients", Sl.Err(err))
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	log.Info("received all clients " + "\"")
+	return result, nil
+}
+
+func (l *Loyalty) GetOperation(ctx context.Context, idOperation int32) (result string, err error) {
+	const op = "Loyalty.GetOperation"
+	log := l.log.With(
+		slog.String("op", op),
+		slog.String("id", strconv.Itoa(int(idOperation))),
+	)
+	result, err = l.promoCodeChanger.GetOperation(ctx, idOperation)
+	if err != nil {
+		log.Error("failed to get operation", Sl.Err(err))
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	log.Info("received operation " + "\"" + strconv.Itoa(int(idOperation)) + "\"")
+	return result, nil
+}
+
+func (l *Loyalty) GetAllOperations(ctx context.Context) (result string, err error) {
+	const op = "Loyalty.GetAllOperations"
+	log := l.log.With(
+		slog.String("op", op),
+	)
+	result, err = l.promoCodeChanger.GetAllOperations(ctx)
+	if err != nil {
+		log.Error("failed to get all operations", Sl.Err(err))
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	log.Info("received all operations " + "\"")
+	return result, nil
+}
+
+func (l *Loyalty) ChangeClientPersonalPromoCode(ctx context.Context, name string, idClient int32) (result string, err error) {
+	const op = "Loyalty.ChangeClientPersonalPromoCode"
+	log := l.log.With(
+		slog.String("op", op),
+		slog.String("name", name),
+	)
+
+	result, err = l.promoCodeChanger.ChangeClientPersonalPromoCode(ctx, name, idClient)
+	if err != nil {
+		log.Error("failed to change id client personal promo code", Sl.Err(err))
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	log.Info("changed id client personal promo code ")
+	return result, nil
+}
+
+func (l *Loyalty) ChangeGroupPersonalPromoCode(ctx context.Context, name string, idGroup int32) (result string, err error) {
+	const op = "Loyalty.ChangeGroupPersonalPromoCode"
+	log := l.log.With(
+		slog.String("op", op),
+		slog.String("name", name),
+	)
+
+	result, err = l.promoCodeChanger.ChangeGroupPersonalPromoCode(ctx, name, idGroup)
+	if err != nil {
+		log.Error("failed to change id group personal promo code", Sl.Err(err))
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	log.Info("changed id group personal promo code ")
+	return result, nil
+}
+
+func (l *Loyalty) ChangeNamePersonalPromoCode(ctx context.Context, name string, newName string) (result string, err error) {
+	const op = "Loyalty.ChangeNamePersonalPromoCode"
+	log := l.log.With(
+		slog.String("op", op),
+		slog.String("name", name),
+	)
+
+	result, err = l.promoCodeChanger.ChangeNamePersonalPromoCode(ctx, name, newName)
+	if err != nil {
+		log.Error("failed to change name personal promo code", Sl.Err(err))
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	log.Info("changed name personal promo code " + "\"" + name + "\"" + " --> " + "\"" + newName + "\"")
+	return result, nil
+}
+func (l *Loyalty) ChangeTypeDiscountPersonalPromoCode(ctx context.Context, name string, typeDiscount int32) (result string, err error) {
+	const op = "Loyalty.ChangeTypeDiscountPersonalPromoCode"
+	log := l.log.With(
+		slog.String("op", op),
+		slog.String("name", name),
+	)
+
+	result, err = l.promoCodeChanger.ChangeTypeDiscountPersonalPromoCode(ctx, name, typeDiscount)
+	if err != nil {
+		log.Error("failed to change type discount personal promo code", Sl.Err(err))
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	log.Info("changed type discount personal promo code ")
+	return result, nil
+}
+func (l *Loyalty) ChangeValueDiscountPersonalPromoCode(ctx context.Context, name string, valueDiscount int32) (result string, err error) {
+	const op = "Loyalty.ChangeValueDiscountPersonalPromoCode"
+	log := l.log.With(
+		slog.String("op", op),
+		slog.String("name", name),
+	)
+
+	result, err = l.promoCodeChanger.ChangeValueDiscountPersonalPromoCode(ctx, name, valueDiscount)
+	if err != nil {
+		log.Error("failed to change value discount personal promo code", Sl.Err(err))
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	log.Info("changed value discount personal promo code ")
+	return result, nil
+}
+func (l *Loyalty) ChangeDateStartActivePersonalPromoCode(ctx context.Context, name string, dateStartActive string) (result string, err error) {
+	const op = "Loyalty.ChangeDateStartActivePersonalPromoCode"
+	log := l.log.With(
+		slog.String("op", op),
+		slog.String("name", name),
+	)
+
+	result, err = l.promoCodeChanger.ChangeDateStartActivePersonalPromoCode(ctx, name, dateStartActive)
+	if err != nil {
+		log.Error("failed to change date start personal promo code", Sl.Err(err))
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	log.Info("changed date start activation personal promo code ")
+	return result, nil
+}
+func (l *Loyalty) ChangeDateFinishActivePersonalPromoCode(ctx context.Context, name string, dateFinishActive string) (result string, err error) {
+	const op = "Loyalty.ChangeDateFinishPersonalPromoCode"
+	log := l.log.With(
+		slog.String("op", op),
+		slog.String("name", name),
+	)
+
+	result, err = l.promoCodeChanger.ChangeDateFinishActivePersonalPromoCode(ctx, name, dateFinishActive)
+	if err != nil {
+		log.Error("failed to change date finish personal promo code", Sl.Err(err))
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	log.Info("changed date finish activation personal promo code ")
+	return result, nil
+}
+
+func (l *Loyalty) DeletePersonalPromoCode(ctx context.Context, name string) (result string, err error) {
+	const op = "Loyalty.DeletePersonalPromoCode"
+	log := l.log.With(
+		slog.String("op", op),
+		slog.String("name", name),
+	)
+	log.Info("deleted " + "\"" + name + "\"" + " personal promo code")
+	result, err = l.promoCodeChanger.DeletePersonalPromoCode(ctx, name)
+	if err != nil {
+		log.Error("failed to delete personal promo code", Sl.Err(err))
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	return result, nil
+}
+
 func (l *Loyalty) AccrualBonusesCashback(ctx context.Context, idClient int32, idCashBack int32) (result string, err error) {
 	const op = "Loyalty.AccrualBonusesCashback"
 	log := l.log.With(
 		slog.String("op", op),
 		slog.String("idClient", strconv.Itoa(int(idClient))),
-		slog.String("idClient", strconv.Itoa(int(idCashBack))),
+		slog.String("idCashBack", strconv.Itoa(int(idCashBack))),
 	)
 	result, err = l.promoCodeChanger.AccrualBonusesCashback(ctx, idClient, idCashBack)
 	if err != nil {
@@ -161,6 +359,35 @@ func (l *Loyalty) GetAllPromoCodes(ctx context.Context) (result string, err erro
 	return result, nil
 }
 
+func (l *Loyalty) GetPersonalPromoCode(ctx context.Context, name string) (result string, err error) {
+	const op = "Loyalty.GetPersonalPromoCode"
+	log := l.log.With(
+		slog.String("op", op),
+		slog.String("name", name),
+	)
+	result, err = l.promoCodeChanger.GetPersonalPromoCode(ctx, name)
+	if err != nil {
+		log.Error("failed to get personal promo code", Sl.Err(err))
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	log.Info("received personal promo code " + "\"" + name + "\"")
+	return result, nil
+}
+
+func (l *Loyalty) GetAllPersonalPromoCodes(ctx context.Context) (result string, err error) {
+	const op = "Loyalty.GetAllPersonalPromoCodes"
+	log := l.log.With(
+		slog.String("op", op),
+	)
+	result, err = l.promoCodeChanger.GetAllPersonalPromoCodes(ctx)
+	if err != nil {
+		log.Error("failed to get all personal promo codes", Sl.Err(err))
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	log.Info("received all promo codes " + "\"")
+	return result, nil
+}
+
 func (l *Loyalty) ChangeNamePromoCode(ctx context.Context, name string, newName string) (result string, err error) {
 	const op = "Loyalty.ChangeNamePromoCode"
 	log := l.log.With(
@@ -200,7 +427,7 @@ func (l *Loyalty) ChangeDateStartActivePromoCode(ctx context.Context, name strin
 
 	result, err = l.promoCodeChanger.ChangeDateStartActivePromoCode(ctx, name, dateStartActive)
 	if err != nil {
-		log.Error("failed to delete promo code", Sl.Err(err))
+		log.Error("failed to change date start promo code", Sl.Err(err))
 		return "", fmt.Errorf("%s: %w", op, err)
 	}
 	log.Info("changed date start activation promo code ")
@@ -215,7 +442,7 @@ func (l *Loyalty) ChangeDateFinishActivePromoCode(ctx context.Context, name stri
 
 	result, err = l.promoCodeChanger.ChangeDateFinishActivePromoCode(ctx, name, dateFinishActive)
 	if err != nil {
-		log.Error("failed to delete promo code", Sl.Err(err))
+		log.Error("failed to change date finish promo code", Sl.Err(err))
 		return "", fmt.Errorf("%s: %w", op, err)
 	}
 	log.Info("changed date finish activation promo code ")
@@ -230,7 +457,7 @@ func (l *Loyalty) ChangeMaxCountUsesPromoCode(ctx context.Context, name string, 
 
 	result, err = l.promoCodeChanger.ChangeMaxCountUsesPromoCode(ctx, name, maxCountUses)
 	if err != nil {
-		log.Error("failed to delete promo code", Sl.Err(err))
+		log.Error("failed to change max count uses promo code", Sl.Err(err))
 		return "", fmt.Errorf("%s: %w", op, err)
 	}
 	log.Info("changed max count uses promo code ")
@@ -245,7 +472,7 @@ func (l *Loyalty) ChangeValueDiscountPromoCode(ctx context.Context, name string,
 
 	result, err = l.promoCodeChanger.ChangeValueDiscountPromoCode(ctx, name, valueDiscount)
 	if err != nil {
-		log.Error("failed to delete promo code", Sl.Err(err))
+		log.Error("failed to change value discount promo code", Sl.Err(err))
 		return "", fmt.Errorf("%s: %w", op, err)
 	}
 	log.Info("changed value discount promo code ")

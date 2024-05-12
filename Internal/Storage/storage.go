@@ -9,6 +9,7 @@ var (
 	ErrSettingUpBudgetExists   = errors.New("budget already exists")
 	ErrCashBackExists          = errors.New("cashback already exists")
 	ErrPromoCodeFound          = errors.New("not found promo code")
+	ErrOperationFound          = errors.New("not found operation")
 	ErrClientFound             = errors.New("not found client")
 	ErrGroupFound              = errors.New("not found group")
 	ErrCashBackFound           = errors.New("not found cashback")

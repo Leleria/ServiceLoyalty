@@ -27,7 +27,7 @@ func New(t *testing.T) (context.Context, *Suite) {
 	t.Helper()
 	t.Parallel()
 
-	cfg := Config.MustLoadByPath("C:/Users/kit/GolandProjects/ServiceLoyalty/Config/local_tests.yaml")
+	cfg := Config.MustLoadByPath("E:/ServiceLoyalty/Config/local_tests.yaml")
 
 	ctx, cancelCtx := context.WithTimeout(context.Background(), cfg.GRPC.Timeout)
 
@@ -36,7 +36,7 @@ func New(t *testing.T) (context.Context, *Suite) {
 		cancelCtx()
 	})
 
-	database, err := db.New("C:/Users/kit/GolandProjects/ServiceLoyalty/Storage/ServiceLoyaltyDB.db")
+	database, err := db.New("E:/ServiceLoyalty/Storage/ServiceLoyaltyDB.db")
 	if err != nil {
 		t.Fatalf("created database failed: %v", err)
 	}
