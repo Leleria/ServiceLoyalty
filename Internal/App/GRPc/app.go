@@ -16,7 +16,7 @@ import (
 type App struct {
 	log        *slog.Logger
 	gRPCServer *grpc.Server
-	port       int // Порт, на котором будет работать grpc-сервер
+	port       int
 }
 
 func New(log *slog.Logger, loyaltyService grcc.Loyalty, port int) *App {
@@ -40,10 +40,10 @@ func New(log *slog.Logger, loyaltyService grcc.Loyalty, port int) *App {
 	))
 
 	grcc.Register(gRPCServer, loyaltyService)
-
 	return &App{log: log,
 		gRPCServer: gRPCServer,
-		port:       port}
+		port:       port,
+	}
 }
 
 func InterceptorLogger(l *slog.Logger) logging.Logger {
@@ -52,6 +52,7 @@ func InterceptorLogger(l *slog.Logger) logging.Logger {
 	})
 }
 func (a *App) MustRun() {
+
 	if err := a.Run(); err != nil {
 		panic(err)
 	}
@@ -79,6 +80,6 @@ func (a *App) Stop() {
 
 	a.log.With(slog.String("op", op)).
 		Info("stopping gRPC server", slog.Int("port", a.port))
-
 	a.gRPCServer.GracefulStop()
+
 }

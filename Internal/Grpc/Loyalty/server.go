@@ -3,7 +3,6 @@ package Loyalty
 import (
 	"context"
 	"errors"
-	"fmt"
 	sl "github.com/Leleria/Contract/GeneratedFilesProtoBufGo"
 	"github.com/Leleria/ServiceLoyalty/Internal/Storage"
 	"google.golang.org/grpc"
@@ -18,7 +17,6 @@ type ServerAPI struct {
 	loyalty Loyalty
 }
 
-//go:generate go run github.com/vektra/mockery/v2@v2.20.2 --name=Loyalty
 type Loyalty interface {
 	AddNewPromoCode(
 		ctx context.Context,
@@ -29,8 +27,8 @@ type Loyalty interface {
 		dateFinishActive string,
 		maxCountUses int32,
 	) (result string, err error)
-	GetPromoCode(ctx context.Context, name string) (result string, err error)
-	GetAllPromoCodes(ctx context.Context) (result string, err error)
+	GetPromoCode(ctx context.Context, name string) (namePromoCode string, typeDiscount string, valueDiscount int32, dateStart string, dateFinish string, maxCountUses int32, err error)
+	GetAllPromoCodes(ctx context.Context) (promoCodes []*sl.PromoCode, err error)
 	DeletePromoCode(ctx context.Context, name string) (result string, err error)
 	ChangeNamePromoCode(ctx context.Context, name string, newName string) (result string, err error)
 	ChangeTypeDiscountPromoCode(ctx context.Context, name string, typeDiscount int32) (result string, err error)
@@ -49,22 +47,22 @@ type Loyalty interface {
 	ChangeValueDiscountPersonalPromoCode(ctx context.Context, name string, valueDiscount int32) (result string, err error)
 	ChangeDateStartActivePersonalPromoCode(ctx context.Context, name string, dateStartActive string) (result string, err error)
 	ChangeDateFinishActivePersonalPromoCode(ctx context.Context, name string, dateFinish string) (result string, err error)
-	GetPersonalPromoCode(ctx context.Context, name string) (result string, err error)
-	GetAllPersonalPromoCodes(ctx context.Context) (result string, err error)
+	GetPersonalPromoCode(ctx context.Context, name string) (client string, group string, namePromoCode string, typeDiscount string, valueDiscount int32, dateStart string, dateFinish string, err error)
+	GetAllPersonalPromoCodes(ctx context.Context) (personalPromoCodes []*sl.PersonalPromoCode, err error)
 
 	SettingUpBudget(ctx context.Context, typeCashBack int32, condition string, valueBudget int32) (result string, err error)
 	ChangeBudgetCashBack(ctx context.Context, idCashBack int32, budget int32) (result string, err error)
 	ChangeTypeCashBack(ctx context.Context, idCashBack int32, typeCashBack int32) (result string, err error)
 	ChangeConditionCashBack(ctx context.Context, idCashBack int32, condition string) (result string, err error)
-	GetCashBack(ctx context.Context, idCashBack int32) (result string, err error)
-	GetAllCashBack(ctx context.Context) (result string, err error)
+	GetCashBack(ctx context.Context, idCashBack int32) (budget int32, typeCashBack string, valueCondition string, err error)
+	GetAllCashBack(ctx context.Context) (cashBacks []*sl.CashBack, err error)
 	DeleteCashBack(ctx context.Context, idCashBack int32) (result string, err error)
 
-	GetClient(ctx context.Context, idClient int32) (result string, err error)
-	GetAllClients(ctx context.Context) (result string, err error)
+	GetClient(ctx context.Context, idClient int32) (name string, email string, countBonuses int32, loyaltyLevel string, err error)
+	GetAllClients(ctx context.Context) (clients []*sl.Client, err error)
 
-	GetOperation(ctx context.Context, idOperation int32) (result string, err error)
-	GetAllOperations(ctx context.Context) (result string, err error)
+	GetOperation(ctx context.Context, idOperation int32) (typeOperations string, client string, countBonuses int32, dateAndTime string, err error)
+	GetAllOperations(ctx context.Context) (operations []*sl.Operation, err error)
 
 	CalculatePriceWithPromoCode(ctx context.Context, idClient int32, namePromoCode string, amountProduct float32) (
 		result string, finalAmountProduct float32, amountDiscount float32, err error)
@@ -81,26 +79,26 @@ func (s *ServerAPI) GetClient(ctx context.Context,
 		return nil, status.Error(codes.InvalidArgument, "incorrect id")
 	}
 
-	result, err := s.loyalty.GetClient(ctx, in.GetIdClient())
+	nameClient, emailClient, countBonusesClient, loyaltyLevelClient, err := s.loyalty.GetClient(ctx, in.GetIdClient())
 	if err != nil {
 		if errors.Is(err, Storage.ErrClientFound) {
 			return nil, status.Error(codes.NotFound, "client not found")
 		}
 		return nil, status.Error(codes.Internal, "incorrect id")
 	}
-	return &sl.GetClientResponse{Result: result}, nil
+	return &sl.GetClientResponse{Name: nameClient, Email: emailClient, CountBonuses: countBonusesClient, LoyaltyLevel: loyaltyLevelClient}, nil
 }
 func (s *ServerAPI) GetAllClients(ctx context.Context,
 	in *sl.GetAllClientsRequest) (*sl.GetAllClientsResponse, error) {
 
-	result, err := s.loyalty.GetAllClients(ctx)
+	clients, err := s.loyalty.GetAllClients(ctx)
 	if err != nil {
 		if errors.Is(err, Storage.ErrClientFound) {
 			return nil, status.Error(codes.NotFound, "client not found")
 		}
 		return nil, status.Error(codes.Internal, "incorrect id")
 	}
-	return &sl.GetAllClientsResponse{Result: result}, nil
+	return &sl.GetAllClientsResponse{Clients: clients}, nil
 }
 
 func (s *ServerAPI) GetOperation(ctx context.Context,
@@ -110,26 +108,26 @@ func (s *ServerAPI) GetOperation(ctx context.Context,
 		return nil, status.Error(codes.InvalidArgument, "incorrect id")
 	}
 
-	result, err := s.loyalty.GetOperation(ctx, in.GetIdOperation())
+	typeOperation, client, countBonuses, dateAndTime, err := s.loyalty.GetOperation(ctx, in.GetIdOperation())
 	if err != nil {
 		if errors.Is(err, Storage.ErrOperationFound) {
 			return nil, status.Error(codes.NotFound, "operation not found")
 		}
 		return nil, status.Error(codes.Internal, "incorrect id")
 	}
-	return &sl.GetOperationResponse{Result: result}, nil
+	return &sl.GetOperationResponse{TypeDiscount: typeOperation, Client: client, CountBonuses: countBonuses, DateAndTime: dateAndTime}, nil
 }
 func (s *ServerAPI) GetAllOperations(ctx context.Context,
 	in *sl.GetAllOperationsRequest) (*sl.GetAllOperationsResponse, error) {
 
-	result, err := s.loyalty.GetAllOperations(ctx)
+	operations, err := s.loyalty.GetAllOperations(ctx)
 	if err != nil {
 		if errors.Is(err, Storage.ErrOperationFound) {
 			return nil, status.Error(codes.NotFound, "operation not found")
 		}
 		return nil, status.Error(codes.Internal, "incorrect id")
 	}
-	return &sl.GetAllOperationsResponse{Result: result}, nil
+	return &sl.GetAllOperationsResponse{Operations: operations}, nil
 }
 
 func (s *ServerAPI) ChangeClientPersonalPromoCode(ctx context.Context,
@@ -324,7 +322,7 @@ func (s *ServerAPI) CalculatePriceWithBonuses(ctx context.Context,
 		}
 		return nil, status.Error(codes.Internal, "failed")
 	}
-	return &sl.CalculatePriceWithBonusesResponse{Result: resultMessage + ", " + fmt.Sprintf("%g", resultFinalAmount) + ", " + fmt.Sprintf("%g", resultNumberBonusesDebited)}, nil
+	return &sl.CalculatePriceWithBonusesResponse{Result: resultMessage, FinalAmountProduct: resultFinalAmount, NumberBonusesDebited: resultNumberBonusesDebited}, nil
 
 }
 
@@ -348,7 +346,7 @@ func (s *ServerAPI) CalculatePriceWithPromoCode(ctx context.Context,
 		}
 		return nil, status.Error(codes.Internal, "failed")
 	}
-	return &sl.CalculatePriceWithPromoCodeResponse{Result: resultMessage + ", " + fmt.Sprintf("%g", resultFinalAmount) + ", " + fmt.Sprintf("%g", resultAmountDiscount)}, nil
+	return &sl.CalculatePriceWithPromoCodeResponse{Result: resultMessage, FinalAmountProduct: resultFinalAmount, AmountDiscount: resultAmountDiscount}, nil
 
 }
 
@@ -422,26 +420,26 @@ func (s *ServerAPI) GetCashBack(ctx context.Context,
 		return nil, status.Error(codes.InvalidArgument, "incorrect id")
 	}
 
-	result, err := s.loyalty.GetCashBack(ctx, in.GetIdCashBack())
+	budget, typeCashBack, valueCondition, err := s.loyalty.GetCashBack(ctx, in.GetIdCashBack())
 	if err != nil {
 		if errors.Is(err, Storage.ErrCashBackExists) {
 			return nil, status.Error(codes.NotFound, "cashback not found")
 		}
 		return nil, status.Error(codes.Internal, "incorrect data")
 	}
-	return &sl.GetCashBackResponse{Result: result}, nil
+	return &sl.GetCashBackResponse{Budget: budget, TypeCashBack: typeCashBack, ValueCondition: valueCondition}, nil
 }
 func (s *ServerAPI) GetAllCashBack(ctx context.Context,
 	in *sl.GetAllCashBackRequest) (*sl.GetAllCashBackResponse, error) {
 
-	result, err := s.loyalty.GetAllCashBack(ctx)
+	cashBacks, err := s.loyalty.GetAllCashBack(ctx)
 	if err != nil {
 		if errors.Is(err, Storage.ErrCashBackExists) {
 			return nil, status.Error(codes.NotFound, "cashback not found")
 		}
 		return nil, status.Error(codes.Internal, "incorrect data")
 	}
-	return &sl.GetAllCashBackResponse{Result: result}, nil
+	return &sl.GetAllCashBackResponse{CashBacks: cashBacks}, nil
 }
 
 func (s *ServerAPI) SettingUpBudget(ctx context.Context,
@@ -520,26 +518,26 @@ func (s *ServerAPI) GetPromoCode(ctx context.Context,
 		return nil, status.Error(codes.InvalidArgument, "incorrect name")
 	}
 
-	result, err := s.loyalty.GetPromoCode(ctx, in.GetName())
+	namePromoCode, typeDiscount, valueDiscount, dateStart, dateFinish, maxCount, err := s.loyalty.GetPromoCode(ctx, in.GetName())
 	if err != nil {
 		if errors.Is(err, Storage.ErrPromoCodeFound) {
 			return nil, status.Error(codes.NotFound, "promo code not found")
 		}
 		return nil, status.Error(codes.Internal, "incorrect name")
 	}
-	return &sl.GetPromoCodeResponse{Result: result}, nil
+	return &sl.GetPromoCodeResponse{NamePromoCode: namePromoCode, TypeDiscount: typeDiscount, ValueDiscount: valueDiscount, DateStart: dateStart, DateFinish: dateFinish, MaxCountUses: maxCount}, nil
 }
 func (s *ServerAPI) GetAllPromoCodes(ctx context.Context,
 	in *sl.GetAllPromoCodesRequest) (*sl.GetAllPromoCodesResponse, error) {
 
-	result, err := s.loyalty.GetAllPromoCodes(ctx)
+	promoCodes, err := s.loyalty.GetAllPromoCodes(ctx)
 	if err != nil {
 		if errors.Is(err, Storage.ErrPromoCodeFound) {
 			return nil, status.Error(codes.NotFound, "promo code not found")
 		}
 		return nil, status.Error(codes.Internal, "incorrect name")
 	}
-	return &sl.GetAllPromoCodesResponse{Result: result}, nil
+	return &sl.GetAllPromoCodesResponse{PromoCodes: promoCodes}, nil
 }
 
 func (s *ServerAPI) GetPersonalPromoCode(ctx context.Context,
@@ -549,26 +547,26 @@ func (s *ServerAPI) GetPersonalPromoCode(ctx context.Context,
 		return nil, status.Error(codes.InvalidArgument, "incorrect name")
 	}
 
-	result, err := s.loyalty.GetPersonalPromoCode(ctx, in.GetName())
+	client, group, namePromoCode, typeDiscount, valueDiscount, dateStart, dateFinish, err := s.loyalty.GetPersonalPromoCode(ctx, in.GetName())
 	if err != nil {
 		if errors.Is(err, Storage.ErrPromoCodeFound) {
 			return nil, status.Error(codes.NotFound, "promo code not found")
 		}
 		return nil, status.Error(codes.Internal, "incorrect name")
 	}
-	return &sl.GetPersonalPromoCodeResponse{Result: result}, nil
+	return &sl.GetPersonalPromoCodeResponse{Client: client, Group: group, NamePromoCode: namePromoCode, TypeDiscount: typeDiscount, ValueDiscount: valueDiscount, DateStart: dateStart, DateFinish: dateFinish}, nil
 }
 func (s *ServerAPI) GetAllPersonalPromoCodes(ctx context.Context,
 	in *sl.GetAllPersonalPromoCodesRequest) (*sl.GetAllPersonalPromoCodesResponse, error) {
 
-	result, err := s.loyalty.GetAllPersonalPromoCodes(ctx)
+	personalPromoCodes, err := s.loyalty.GetAllPersonalPromoCodes(ctx)
 	if err != nil {
 		if errors.Is(err, Storage.ErrPromoCodeFound) {
 			return nil, status.Error(codes.NotFound, "promo code not found")
 		}
 		return nil, status.Error(codes.Internal, "incorrect name")
 	}
-	return &sl.GetAllPersonalPromoCodesResponse{Result: result}, nil
+	return &sl.GetAllPersonalPromoCodesResponse{PersonalPromoCodes: personalPromoCodes}, nil
 }
 
 func (s *ServerAPI) ChangeNamePromoCode(ctx context.Context,

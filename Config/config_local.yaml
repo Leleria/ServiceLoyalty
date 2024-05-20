@@ -3,4 +3,3 @@ storage_path: "./Storage/ServiceLoyaltyDB.db?_journal_mode=WAL"
 grpc:
   port: 44044
   timeout: 10m
-

@@ -7,6 +7,14 @@ services:
       - "44044:44044"
     volumes:
       -  db_data:/app/Storage
+  http-proxy:
+    build: E:/proxy
+    ports:
+      - "50051:50051"
+    depends_on:
+      - loyalty-service
+
+
 volumes:
     db_data:
 

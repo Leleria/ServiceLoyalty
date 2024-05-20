@@ -3,7 +3,7 @@
            ('за отзывы'),
            ('за привличение новых клиентов'),
            ('в честь дня рождения'),
-           ('в честь юбилея копании')
+           ('в честь юбилея компании')
         ON CONFLICT DO NOTHING;
 
     insert into TypesOfDiscounts (NameType)
@@ -51,7 +51,7 @@
            (50, 2, 'в конце месяца'),
            (30, 1, 'в течении майских праздников'),
            (40, 1, 'в период нового года'),
-           (90, 1, 'в начале месяца месяца')
+           (90, 1, 'в начале месяца')
         ON CONFLICT DO NOTHING;
 
     insert into PromoCodes (Name, TypeDiscountFK, ValueDiscount, DateStartActive, DateFinishActive, MaxCountUses)

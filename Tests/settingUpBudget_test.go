@@ -10,22 +10,23 @@ import (
 	"testing"
 )
 
-func TestSettingUpBudget_HappyPath(t *testing.T) {
+func TestAddCashBack(t *testing.T) {
 	ctx, st := Suite.New(t)
 
 	budget := gofakeit.Number(1, 500)
-	typeCashBackId := gofakeit.Number(1, 2)
+	typeCashBackId := gofakeit.Number(1, 5)
 	valueCondition := "в конце месяца"
+	expected := "complete"
 
-	respCashback, err := st.LoyaltyServiceClient.SettingUpBudget(ctx, &sl.SettingUpBudgetRequest{
-		ValueBudget:  int32(budget),
-		TypeCashBack: int32(typeCashBackId),
-		Condition:    valueCondition,
-	})
-	require.NoError(t, err)
-	result := respCashback.GetResult()
-	require.NotEmpty(t, result)
-	assert.Equal(t, result, "complete")
+	result, err := st.DB.SaveSettingUpBudget(ctx, int32(typeCashBackId), valueCondition, int32(budget))
+	if err != nil {
+		message := err.Error()
+		parts := strings.Split(message, ": ")
+		assert.Equal(t, expected, parts[1])
+	} else {
+		require.NotEmpty(t, result)
+		assert.Equal(t, result, "complete")
+	}
 }
 func TestSettingUpBudget_CheckBudgetCashBack(t *testing.T) {
 	ctx, st := Suite.New(t)

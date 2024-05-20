@@ -5,69 +5,74 @@ import (
 	"github.com/Leleria/ServiceLoyalty/Tests/Suite"
 	"github.com/brianvoe/gofakeit/v6"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 )
 
-//	func TestAddPersonalPromoCode_AddToDatabase(t *testing.T) {
-//		ctx, st := Suite.New(t)
-//
-//		startDate := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
-//		endDate := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
-//
-//		testTable := []struct {
-//			namePromoCode    string
-//			typeDiscountId   int
-//			valueDiscount    int
-//			dateStartActive  string
-//			dateFinishActive string
-//			maxCountUses     int
-//			expected         string
-//		}{
-//			{
-//				namePromoCode:    gofakeit.Lexify("?????"),
-//				typeDiscountId:   1,
-//				valueDiscount:    gofakeit.Number(1, 99),
-//				dateStartActive:  gofakeit.DateRange(startDate, endDate).Format("2006-01-02"),
-//				dateFinishActive: gofakeit.PastDate().Format("2006-01-02"),
-//				maxCountUses:     gofakeit.Number(1, 500),
-//				expected:         "complete",
-//			},
-//			{
-//				namePromoCode:    gofakeit.Lexify("?????"),
-//				typeDiscountId:   2,
-//				valueDiscount:    gofakeit.Number(1, 500),
-//				dateStartActive:  gofakeit.DateRange(startDate, endDate).Format("2006-01-02"),
-//				dateFinishActive: gofakeit.PastDate().Format("2006-02-03"),
-//				maxCountUses:     gofakeit.Number(1, 500),
-//				expected:         "complete",
-//			},
-//			{
-//				namePromoCode:    "TkyzD",
-//				typeDiscountId:   1,
-//				valueDiscount:    gofakeit.Number(1, 99),
-//				dateStartActive:  gofakeit.DateRange(startDate, endDate).Format("2006-01-02"),
-//				dateFinishActive: gofakeit.PastDate().Format("2006-02-03"),
-//				maxCountUses:     gofakeit.Number(1, 500),
-//				expected:         "promo code already exists",
-//			},
-//		}
-//		for _, equal := range testTable {
-//			result, err := st.DB.SavePersoPromoCode(ctx, equal.namePromoCode, int32(equal.typeDiscountId),
-//				int32(equal.valueDiscount), equal.dateStartActive, equal.dateFinishActive, int32(equal.maxCountUses))
-//
-//			if err != nil {
-//				message := err.Error()
-//				parts := strings.Split(message, ": ")
-//				assert.Equal(t, equal.expected, parts[1])
-//			} else {
-//				require.NotEmpty(t, result)
-//				assert.Equal(t, result, "complete")
-//			}
-//		}
-//	}
+func TestAddPersonalPromoCode_AddToDatabase(t *testing.T) {
+	ctx, st := Suite.New(t)
+
+	startDate := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+	endDate := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	testTable := []struct {
+		idClient         int
+		idGroup          int
+		namePromoCode    string
+		typeDiscountId   int
+		valueDiscount    int
+		dateStartActive  string
+		dateFinishActive string
+		expected         string
+	}{
+		{
+			idClient:         gofakeit.IntRange(1, 5),
+			idGroup:          gofakeit.IntRange(1, 5),
+			namePromoCode:    gofakeit.Lexify("?????"),
+			typeDiscountId:   1,
+			valueDiscount:    gofakeit.Number(1, 99),
+			dateStartActive:  gofakeit.DateRange(startDate, endDate).Format("2006-01-02"),
+			dateFinishActive: gofakeit.PastDate().Format("2006-01-02"),
+			expected:         "complete",
+		},
+		{
+			idClient:         gofakeit.IntRange(1, 5),
+			idGroup:          gofakeit.IntRange(1, 5),
+			namePromoCode:    gofakeit.Lexify("?????"),
+			typeDiscountId:   2,
+			valueDiscount:    gofakeit.Number(1, 500),
+			dateStartActive:  gofakeit.DateRange(startDate, endDate).Format("2006-01-02"),
+			dateFinishActive: gofakeit.PastDate().Format("2006-02-03"),
+			expected:         "complete",
+		},
+		{
+			idClient:         gofakeit.IntRange(1, 5),
+			idGroup:          gofakeit.IntRange(1, 5),
+			namePromoCode:    "TkyzD",
+			typeDiscountId:   1,
+			valueDiscount:    gofakeit.Number(1, 99),
+			dateStartActive:  gofakeit.DateRange(startDate, endDate).Format("2006-01-02"),
+			dateFinishActive: gofakeit.PastDate().Format("2006-02-03"),
+			expected:         "promo code already exists",
+		},
+	}
+	for _, equal := range testTable {
+		result, err := st.DB.SavePersonalPromoCode(ctx, int32(equal.idClient), int32(equal.idGroup), equal.namePromoCode, int32(equal.typeDiscountId),
+			int32(equal.valueDiscount), equal.dateStartActive, equal.dateFinishActive)
+
+		if err != nil {
+			message := err.Error()
+			parts := strings.Split(message, ": ")
+			assert.Equal(t, equal.expected, parts[1])
+		} else {
+			require.NotEmpty(t, result)
+			assert.Equal(t, result, "complete")
+		}
+	}
+}
 func TestAddPersonalPromoCode_CheckIdClientPersonalPromoCode(t *testing.T) {
 	ctx, st := Suite.New(t)
 

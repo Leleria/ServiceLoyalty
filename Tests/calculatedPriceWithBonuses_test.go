@@ -8,21 +8,19 @@ import (
 	"testing"
 )
 
-func TestCalculatedPriceWthPromoCode(t *testing.T) {
+func TestCalculatedPriceWthBonuses(t *testing.T) {
 
 	ctx, st := Suite.New(t)
 
 	idClient := 1
-	namePromoCode := "HbnGh"
 	amountProduct := 500
 
-	respCalcPrice, err := st.LoyaltyServiceClient.CalculatePriceWithPromoCode(ctx, &sl.CalculatePriceWithPromoCodeRequest{
+	respCalcPrice, err := st.LoyaltyServiceClient.CalculatePriceWithBonuses(ctx, &sl.CalculatePriceWithBonusesRequest{
 		IdClient:      int32(idClient),
-		PromoCode:     namePromoCode,
 		AmountProduct: float32(amountProduct),
 	})
 	require.NoError(t, err)
 	result := respCalcPrice.GetResult()
 	require.NotEmpty(t, result)
-	assert.Equal(t, result, "complete, 440, 60")
+	assert.Equal(t, result, "complete, 350, 150")
 }

@@ -3,6 +3,7 @@ package Loyalty
 import (
 	"context"
 	"fmt"
+	sl "github.com/Leleria/Contract/GeneratedFilesProtoBufGo"
 	"github.com/Leleria/ServiceLoyalty/Internal/Lib/Logger/Sl"
 	"log/slog"
 	"strconv"
@@ -16,8 +17,8 @@ type PromoCodeChanger interface {
 		valueDiscount int32, dateStartActive string,
 		dateFinishActive string, maxCountUses int32) (
 		result string, err error)
-	GetPromoCode(ctx context.Context, name string) (string, error)
-	GetAllPromoCodes(ctx context.Context) (string, error)
+	GetPromoCode(ctx context.Context, name string) (namePromoCode string, typeDiscount string, valueDiscount int32, dateStart string, dateFinish string, maxCountUses int32, err error)
+	GetAllPromoCodes(ctx context.Context) (promoCodes []*sl.PromoCode, err error)
 	DeletePromoCode(ctx context.Context, name string) (result string, err error)
 	ChangeNamePromoCode(ctx context.Context, name string, newName string) (result string, err error)
 	ChangeTypeDiscountPromoCode(ctx context.Context, name string, typeDiscount int32) (result string, err error)
@@ -34,21 +35,21 @@ type PromoCodeChanger interface {
 	ChangeValueDiscountPersonalPromoCode(ctx context.Context, name string, valueDiscount int32) (result string, err error)
 	ChangeDateStartActivePersonalPromoCode(ctx context.Context, name string, dateStartActive string) (result string, err error)
 	ChangeDateFinishActivePersonalPromoCode(ctx context.Context, name string, dateFinish string) (result string, err error)
-	GetPersonalPromoCode(ctx context.Context, name string) (result string, err error)
-	GetAllPersonalPromoCodes(ctx context.Context) (result string, err error)
+	GetPersonalPromoCode(ctx context.Context, name string) (client string, group string, namePromoCode string, typeDiscount string, valueDiscount int32, dateStart string, dateFinish string, err error)
+	GetAllPersonalPromoCodes(ctx context.Context) (personalPromoCodes []*sl.PersonalPromoCode, err error)
 
-	GetClient(ctx context.Context, idClient int32) (result string, err error)
-	GetAllClients(ctx context.Context) (result string, err error)
+	GetClient(ctx context.Context, idClient int32) (name string, email string, countBonuses int32, loyaltyLevel string, err error)
+	GetAllClients(ctx context.Context) (clients []*sl.Client, err error)
 
-	GetOperation(ctx context.Context, idOperation int32) (result string, err error)
-	GetAllOperations(ctx context.Context) (result string, err error)
+	GetOperation(ctx context.Context, idOperation int32) (typeOperations string, client string, countBonuses int32, dateAndTime string, err error)
+	GetAllOperations(ctx context.Context) (operations []*sl.Operation, err error)
 
 	SaveSettingUpBudget(ctx context.Context, typeCashBack int32, condition string, valueBudget int32) (result string, err error)
 	ChangeBudgetCashBack(ctx context.Context, idCashBack int32, budget int32) (result string, err error)
 	ChangeTypeCashBack(ctx context.Context, idCashBack int32, typeCashBack int32) (result string, err error)
 	ChangeConditionCashBack(ctx context.Context, idCashBack int32, condition string) (result string, err error)
-	GetCashBack(ctx context.Context, idCashBack int32) (result string, err error)
-	GetAllCashBack(ctx context.Context) (result string, err error)
+	GetCashBack(ctx context.Context, idCashBack int32) (budget int32, typeCashBack string, valueCondition string, err error)
+	GetAllCashBack(ctx context.Context) (cashBacks []*sl.CashBack, err error)
 	DeleteCashBack(ctx context.Context, idCashBack int32) (result string, err error)
 
 	CalculatePriceWithPromoCode(ctx context.Context, idClient int32, namePromoCode string, amountProduct float32) (
@@ -71,62 +72,62 @@ func New(log *slog.Logger,
 	}
 }
 
-func (l *Loyalty) GetClient(ctx context.Context, idClient int32) (result string, err error) {
+func (l *Loyalty) GetClient(ctx context.Context, idClient int32) (name string, email string, countBonuses int32, loyaltyLevel string, err error) {
 	const op = "Loyalty.GetClient"
 	log := l.log.With(
 		slog.String("op", op),
 		slog.String("id", strconv.Itoa(int(idClient))),
 	)
-	result, err = l.promoCodeChanger.GetClient(ctx, idClient)
+	nameClient, emailClient, countBonusesClient, loyaltyLevelClient, err := l.promoCodeChanger.GetClient(ctx, idClient)
 	if err != nil {
 		log.Error("failed to get client", Sl.Err(err))
-		return "", fmt.Errorf("%s: %w", op, err)
+		return "", "", 0, "", fmt.Errorf("%s: %w", op, err)
 	}
 	log.Info("received client " + "\"" + strconv.Itoa(int(idClient)) + "\"")
-	return result, nil
+	return nameClient, emailClient, countBonusesClient, loyaltyLevelClient, nil
 }
 
-func (l *Loyalty) GetAllClients(ctx context.Context) (result string, err error) {
+func (l *Loyalty) GetAllClients(ctx context.Context) (clients []*sl.Client, err error) {
 	const op = "Loyalty.GetAllClients"
 	log := l.log.With(
 		slog.String("op", op),
 	)
-	result, err = l.promoCodeChanger.GetAllClients(ctx)
+	result, err := l.promoCodeChanger.GetAllClients(ctx)
 	if err != nil {
 		log.Error("failed to get all clients", Sl.Err(err))
-		return "", fmt.Errorf("%s: %w", op, err)
+		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 	log.Info("received all clients " + "\"")
 	return result, nil
 }
 
-func (l *Loyalty) GetOperation(ctx context.Context, idOperation int32) (result string, err error) {
+func (l *Loyalty) GetOperation(ctx context.Context, idOperation int32) (string, string, int32, string, error) {
 	const op = "Loyalty.GetOperation"
 	log := l.log.With(
 		slog.String("op", op),
 		slog.String("id", strconv.Itoa(int(idOperation))),
 	)
-	result, err = l.promoCodeChanger.GetOperation(ctx, idOperation)
+	typeOperation, client, countBonuses, dateAndTime, err := l.promoCodeChanger.GetOperation(ctx, idOperation)
 	if err != nil {
 		log.Error("failed to get operation", Sl.Err(err))
-		return "", fmt.Errorf("%s: %w", op, err)
+		return "", "", 0, "", fmt.Errorf("%s: %w", op, err)
 	}
 	log.Info("received operation " + "\"" + strconv.Itoa(int(idOperation)) + "\"")
-	return result, nil
+	return typeOperation, client, countBonuses, dateAndTime, nil
 }
 
-func (l *Loyalty) GetAllOperations(ctx context.Context) (result string, err error) {
+func (l *Loyalty) GetAllOperations(ctx context.Context) ([]*sl.Operation, error) {
 	const op = "Loyalty.GetAllOperations"
 	log := l.log.With(
 		slog.String("op", op),
 	)
-	result, err = l.promoCodeChanger.GetAllOperations(ctx)
+	operations, err := l.promoCodeChanger.GetAllOperations(ctx)
 	if err != nil {
 		log.Error("failed to get all operations", Sl.Err(err))
-		return "", fmt.Errorf("%s: %w", op, err)
+		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 	log.Info("received all operations " + "\"")
-	return result, nil
+	return operations, nil
 }
 
 func (l *Loyalty) ChangeClientPersonalPromoCode(ctx context.Context, name string, idClient int32) (result string, err error) {
@@ -330,62 +331,62 @@ func (l *Loyalty) DeleteCashBack(ctx context.Context, idCashBack int32) (result 
 	return result, nil
 }
 
-func (l *Loyalty) GetPromoCode(ctx context.Context, name string) (result string, err error) {
+func (l *Loyalty) GetPromoCode(ctx context.Context, name string) (string, string, int32, string, string, int32, error) {
 	const op = "Loyalty.GetPromoCode"
 	log := l.log.With(
 		slog.String("op", op),
 		slog.String("name", name),
 	)
-	result, err = l.promoCodeChanger.GetPromoCode(ctx, name)
+	namePromoCode, typeDiscount, valueDiscount, dateStart, dateFinish, maxCountUses, err := l.promoCodeChanger.GetPromoCode(ctx, name)
 	if err != nil {
 		log.Error("failed to get promo code", Sl.Err(err))
-		return "", fmt.Errorf("%s: %w", op, err)
+		return "", "", 0, "", "", 0, fmt.Errorf("%s: %w", op, err)
 	}
 	log.Info("received promo code " + "\"" + name + "\"")
-	return result, nil
+	return namePromoCode, typeDiscount, valueDiscount, dateStart, dateFinish, maxCountUses, nil
 }
 
-func (l *Loyalty) GetAllPromoCodes(ctx context.Context) (result string, err error) {
+func (l *Loyalty) GetAllPromoCodes(ctx context.Context) ([]*sl.PromoCode, error) {
 	const op = "Loyalty.GetAllPromoCodes"
 	log := l.log.With(
 		slog.String("op", op),
 	)
-	result, err = l.promoCodeChanger.GetAllPromoCodes(ctx)
+	promoCodes, err := l.promoCodeChanger.GetAllPromoCodes(ctx)
 	if err != nil {
 		log.Error("failed to get all promo codes", Sl.Err(err))
-		return "", fmt.Errorf("%s: %w", op, err)
+		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 	log.Info("received all promo codes " + "\"")
-	return result, nil
+	return promoCodes, nil
 }
 
-func (l *Loyalty) GetPersonalPromoCode(ctx context.Context, name string) (result string, err error) {
+func (l *Loyalty) GetPersonalPromoCode(ctx context.Context, name string) (string, string, string, string, int32, string, string, error) {
 	const op = "Loyalty.GetPersonalPromoCode"
 	log := l.log.With(
 		slog.String("op", op),
 		slog.String("name", name),
 	)
-	result, err = l.promoCodeChanger.GetPersonalPromoCode(ctx, name)
+	client, group, namePromoCode, typeDiscount, valueDiscount, dateStart, dateFinish, err := l.promoCodeChanger.GetPersonalPromoCode(ctx, name)
 	if err != nil {
 		log.Error("failed to get personal promo code", Sl.Err(err))
-		return "", fmt.Errorf("%s: %w", op, err)
+		return "", "", "", "", 0, "", "", fmt.Errorf("%s: %w", op, err)
 	}
 	log.Info("received personal promo code " + "\"" + name + "\"")
-	return result, nil
+	return client, group, namePromoCode, typeDiscount, valueDiscount, dateStart, dateFinish, nil
 }
 
-func (l *Loyalty) GetAllPersonalPromoCodes(ctx context.Context) (result string, err error) {
+func (l *Loyalty) GetAllPersonalPromoCodes(ctx context.Context) ([]*sl.PersonalPromoCode, error) {
 	const op = "Loyalty.GetAllPersonalPromoCodes"
 	log := l.log.With(
 		slog.String("op", op),
 	)
-	result, err = l.promoCodeChanger.GetAllPersonalPromoCodes(ctx)
+	personalPromoCodes, err := l.promoCodeChanger.GetAllPersonalPromoCodes(ctx)
 	if err != nil {
 		log.Error("failed to get all personal promo codes", Sl.Err(err))
-		return "", fmt.Errorf("%s: %w", op, err)
+		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 	log.Info("received all promo codes " + "\"")
-	return result, nil
+	return personalPromoCodes, nil
 }
 
 func (l *Loyalty) ChangeNamePromoCode(ctx context.Context, name string, newName string) (result string, err error) {
@@ -543,33 +544,33 @@ func (l *Loyalty) SettingUpBudget(ctx context.Context, typeCashBack int32, condi
 	return result, nil
 }
 
-func (l *Loyalty) GetCashBack(ctx context.Context, idCashBack int32) (result string, err error) {
+func (l *Loyalty) GetCashBack(ctx context.Context, idCashBack int32) (int32, string, string, error) {
 	const op = "Loyalty.GetCashBack"
 	log := l.log.With(
 		slog.String("op", op),
 		slog.String("id", strconv.Itoa(int(idCashBack))),
 	)
-	result, err = l.promoCodeChanger.GetCashBack(ctx, idCashBack)
+	budget, typeDiscount, valueCondition, err := l.promoCodeChanger.GetCashBack(ctx, idCashBack)
 	if err != nil {
 		log.Error("failed to get cashback", Sl.Err(err))
-		return "", fmt.Errorf("%s: %w", op, err)
+		return 0, "", "", fmt.Errorf("%s: %w", op, err)
 	}
 	log.Info("received cashback " + "\"" + strconv.Itoa(int(idCashBack)) + "\"")
-	return result, nil
+	return budget, typeDiscount, valueCondition, nil
 }
 
-func (l *Loyalty) GetAllCashBack(ctx context.Context) (result string, err error) {
+func (l *Loyalty) GetAllCashBack(ctx context.Context) ([]*sl.CashBack, error) {
 	const op = "Loyalty.GetAllCashBack"
 	log := l.log.With(
 		slog.String("op", op),
 	)
-	result, err = l.promoCodeChanger.GetAllCashBack(ctx)
+	cashBacks, err := l.promoCodeChanger.GetAllCashBack(ctx)
 	if err != nil {
 		log.Error("failed to get all cashbacks", Sl.Err(err))
-		return "", fmt.Errorf("%s: %w", op, err)
+		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 	log.Info("received all cashbacks " + "\"")
-	return result, nil
+	return cashBacks, nil
 }
 
 func (l *Loyalty) ChangeBudgetCashBack(ctx context.Context, idCashBack int32, budget int32) (result string, err error) {

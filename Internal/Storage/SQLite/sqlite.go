@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	sl "github.com/Leleria/Contract/GeneratedFilesProtoBufGo"
 	"github.com/Leleria/ServiceLoyalty/Internal/Domain/Models"
 	st "github.com/Leleria/ServiceLoyalty/Internal/Storage"
 	"github.com/mattn/go-sqlite3"
@@ -30,77 +31,81 @@ func New(storagePath string) (*Storage, error) {
 	return &Storage{db: db}, nil
 }
 
-func (s *Storage) GetClient(ctx context.Context, idClient int32) (string, error) {
+func (s *Storage) GetClient(ctx context.Context, idClient int32) (string, string, int32, string, error) {
 	const op = "Storage.Sqlite.GetClient"
 
 	err := s.CheckContainClient(ctx, idClient)
 	if err != nil {
-		return "", fmt.Errorf("%s: %w", op, err)
+		return "", "", 0, "", fmt.Errorf("%s: %w", op, err)
 	}
 	stmt, err := s.db.Prepare("select Name, Email, Clients.CountBonuses, LoyaltyLevels.NameLevel FROM Clients INNER JOIN LoyaltyLevels ON Clients.LoyaltyLevelFK = LoyaltyLevels.Id WHERE Clients.Id = ?")
 	if err != nil {
-		return "", fmt.Errorf("%s: %w", op, err)
+		return "", "", 0, "", fmt.Errorf("%s: %w", op, err)
 	}
 
 	row := stmt.QueryRowContext(ctx, idClient)
 
 	var client Models.Client
-	var loyaltyLevel Models.LoyaltyLevel
-	err = row.Scan(&client.Name, &client.Email, &client.CountBonuses, &loyaltyLevel.NameLevel)
+	var loyaltyLevelClient Models.LoyaltyLevel
+	err = row.Scan(&client.Name, &client.Email, &client.CountBonuses, &loyaltyLevelClient.NameLevel)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return "", fmt.Errorf("%s: %w", op, st.ErrClientFound)
+			return "", "", 0, "", fmt.Errorf("%s: %w", op, st.ErrClientFound)
 		}
 
-		return "", fmt.Errorf("%s: %w", op, err)
+		return "", "", 0, "", fmt.Errorf("%s: %w", op, err)
 	}
 
-	result := client.Name + " " + client.Email + " " + strconv.Itoa(int(client.CountBonuses)) + " " + loyaltyLevel.NameLevel
-	return result, nil
+	return client.Name, client.Email, client.CountBonuses, loyaltyLevelClient.NameLevel, nil
 }
 
-func (s *Storage) GetAllClients(ctx context.Context) (string, error) {
+func (s *Storage) GetAllClients(ctx context.Context) ([]*sl.Client, error) {
 	const op = "Storage.Sqlite.GetAllClients"
 
+	var clients []*sl.Client
 	stmt, err := s.db.Prepare("select Name, Email, Clients.CountBonuses, LoyaltyLevels.NameLevel FROM Clients INNER JOIN LoyaltyLevels ON Clients.LoyaltyLevelFK = LoyaltyLevels.Id")
 	if err != nil {
-		return "", fmt.Errorf("%s: %w", op, err)
+		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
 	row, err := stmt.QueryContext(ctx)
 	if err != nil {
-		return "", fmt.Errorf("%s: %w", op, err)
+		return nil, fmt.Errorf("%s: %w", op, err)
 	}
-	var result string
 	for row.Next() {
 		var client Models.Client
-		var loyaltyLevel Models.LoyaltyLevel
-		err := row.Scan(&client.Name, &client.Email, &client.CountBonuses, &loyaltyLevel.NameLevel)
+		var loyaltyLevelClient Models.LoyaltyLevel
+		err := row.Scan(&client.Name, &client.Email, &client.CountBonuses, &loyaltyLevelClient.NameLevel)
 
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				return "", fmt.Errorf("%s: %w", op, st.ErrClientFound)
+				return nil, fmt.Errorf("%s: %w", op, st.ErrClientFound)
 			}
-			return "", fmt.Errorf("%s: %w", op, err)
+			return nil, fmt.Errorf("%s: %w", op, err)
 		}
 
-		result = result + client.Name + " " + client.Email + " " + strconv.Itoa(int(client.CountBonuses)) + " " + loyaltyLevel.NameLevel + ", "
+		clients = append(clients, &sl.Client{
+			Name:         client.Name,
+			Email:        client.Email,
+			CountBonuses: client.CountBonuses,
+			LoyaltyLevel: loyaltyLevelClient.NameLevel,
+		})
 	}
 
-	return result, nil
+	return clients, nil
 }
 
-func (s *Storage) GetOperation(ctx context.Context, idOperation int32) (string, error) {
+func (s *Storage) GetOperation(ctx context.Context, idOperation int32) (string, string, int32, string, error) {
 	const op = "Storage.Sqlite.GetOperation"
 
 	err := s.CheckContainOperation(ctx, idOperation)
 	if err != nil {
-		return "", fmt.Errorf("%s: %w", op, err)
+		return "", "", 0, "", fmt.Errorf("%s: %w", op, err)
 	}
 	stmt, err := s.db.Prepare("select TypesOperations.NameTypeOperation, Clients.Name, Operations.CountBonuses, DateAndTimeOperation FROM Operations " +
 		"INNER JOIN TypesOperations ON Operations.TypeOperationFK = TypesOperations.Id INNER JOIN Clients ON Operations.ClientFK = Clients.Id  WHERE Operations.Id = ?")
 	if err != nil {
-		return "", fmt.Errorf("%s: %w", op, err)
+		return "", "", 0, "", fmt.Errorf("%s: %w", op, err)
 	}
 
 	row := stmt.QueryRowContext(ctx, idOperation)
@@ -111,28 +116,29 @@ func (s *Storage) GetOperation(ctx context.Context, idOperation int32) (string, 
 	err = row.Scan(&typeOperation.NameTypeOperation, &client.Name, &operation.CountBonuses, &operation.DateAndTimeOperation)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return "", fmt.Errorf("%s: %w", op, st.ErrOperationFound)
+			return "", "", 0, "", fmt.Errorf("%s: %w", op, st.ErrOperationFound)
 		}
 
-		return "", fmt.Errorf("%s: %w", op, err)
+		return "", "", 0, "", fmt.Errorf("%s: %w", op, err)
 	}
 
-	result := typeOperation.NameTypeOperation + " " + client.Name + " " + strconv.Itoa(int(operation.CountBonuses)) + " " + operation.DateAndTimeOperation
-	return result, nil
+	//result := typeOperation.NameTypeOperation + " " + client.Name + " " + strconv.Itoa(int(operation.CountBonuses)) + " " + operation.DateAndTimeOperation
+	return typeOperation.NameTypeOperation, client.Name, operation.CountBonuses, operation.DateAndTimeOperation, nil
 }
 
-func (s *Storage) GetAllOperations(ctx context.Context) (string, error) {
+func (s *Storage) GetAllOperations(ctx context.Context) ([]*sl.Operation, error) {
 	const op = "Storage.Sqlite.GetAllOperations"
 
+	var operations []*sl.Operation
 	stmt, err := s.db.Prepare("select TypesOperations.NameTypeOperation, Clients.Name, Operations.CountBonuses, DateAndTimeOperation FROM Operations " +
 		"INNER JOIN TypesOperations ON Operations.TypeOperationFK = TypesOperations.Id INNER JOIN Clients ON Operations.ClientFK = Clients.Id")
 	if err != nil {
-		return "", fmt.Errorf("%s: %w", op, err)
+		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
 	row, err := stmt.QueryContext(ctx)
 	if err != nil {
-		return "", fmt.Errorf("%s: %w", op, err)
+		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 	var result string
 	for row.Next() {
@@ -143,15 +149,21 @@ func (s *Storage) GetAllOperations(ctx context.Context) (string, error) {
 
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				return "", fmt.Errorf("%s: %w", op, st.ErrOperationFound)
+				return nil, fmt.Errorf("%s: %w", op, st.ErrOperationFound)
 			}
-			return "", fmt.Errorf("%s: %w", op, err)
+			return nil, fmt.Errorf("%s: %w", op, err)
 		}
 
 		result = result + typeOperation.NameTypeOperation + " " + client.Name + " " + strconv.Itoa(int(operation.CountBonuses)) + " " + operation.DateAndTimeOperation + ", "
+		operations = append(operations, &sl.Operation{
+			TypeDiscount: typeOperation.NameTypeOperation,
+			Client:       client.Name,
+			CountBonuses: operation.CountBonuses,
+			DateAndTime:  operation.DateAndTimeOperation,
+		})
 	}
 
-	return result, nil
+	return operations, nil
 }
 
 func (s *Storage) ChangeClientPersonalPromoCode(ctx context.Context, name string, idClient int32) (string, error) {
@@ -1139,17 +1151,17 @@ func (s *Storage) DeletePersonalPromoCode(ctx context.Context, name string) (str
 	return "complete", nil
 }
 
-func (s *Storage) GetPromoCode(ctx context.Context, name string) (string, error) {
+func (s *Storage) GetPromoCode(ctx context.Context, name string) (string, string, int32, string, string, int32, error) {
 	const op = "Storage.Sqlite.GetPromoCode"
 
 	err := s.CheckContainPromoCode(ctx, name)
 	if err != nil {
-		return "", fmt.Errorf("%s: %w", op, err)
+		return "", "", 0, "", "", 0, fmt.Errorf("%s: %w", op, err)
 	}
 	stmt, err := s.db.Prepare("select TypesOfDiscounts.NameType, ValueDiscount, DateStartActive, DateFinishActive," +
 		" MaxCountUses FROM PromoCodes INNER JOIN TypesOfDiscounts ON PromoCodes.TypeDiscountFK = TypesOfDiscounts.Id  WHERE PromoCodes.Name = ?")
 	if err != nil {
-		return "", fmt.Errorf("%s: %w", op, err)
+		return "", "", 0, "", "", 0, fmt.Errorf("%s: %w", op, err)
 	}
 
 	row := stmt.QueryRowContext(ctx, name)
@@ -1160,31 +1172,29 @@ func (s *Storage) GetPromoCode(ctx context.Context, name string) (string, error)
 		&promoCode.DateFinishActive, &promoCode.MaxCountUses)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return "", fmt.Errorf("%s: %w", op, st.ErrPromoCodeFound)
+			return "", "", 0, "", "", 0, fmt.Errorf("%s: %w", op, st.ErrPromoCodeFound)
 		}
 
-		return "", fmt.Errorf("%s: %w", op, err)
+		return "", "", 0, "", "", 0, fmt.Errorf("%s: %w", op, err)
 	}
 
-	result := typeDiscountPromoCode.NameType + " " + strconv.Itoa(int(promoCode.ValueDiscount)) + " " + promoCode.DateStartActive +
-		" " + promoCode.DateFinishActive + " " + strconv.Itoa(int(promoCode.MaxCountUses))
-	return result, nil
+	return name, typeDiscountPromoCode.NameType, promoCode.ValueDiscount, promoCode.DateStartActive, promoCode.DateFinishActive, promoCode.MaxCountUses, nil
 }
 
-func (s *Storage) GetAllPromoCodes(ctx context.Context) (string, error) {
+func (s *Storage) GetAllPromoCodes(ctx context.Context) ([]*sl.PromoCode, error) {
 	const op = "Storage.Sqlite.GetAllPromoCodes"
 
+	var promoCodes []*sl.PromoCode
 	stmt, err := s.db.Prepare("select Name, TypesOfDiscounts.NameType, ValueDiscount, DateStartActive, DateFinishActive," +
 		" MaxCountUses FROM PromoCodes INNER JOIN TypesOfDiscounts ON PromoCodes.TypeDiscountFK = TypesOfDiscounts.Id ")
 	if err != nil {
-		return "", fmt.Errorf("%s: %w", op, err)
+		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
 	row, err := stmt.QueryContext(ctx)
 	if err != nil {
-		return "", fmt.Errorf("%s: %w", op, err)
+		return nil, fmt.Errorf("%s: %w", op, err)
 	}
-	var result string
 	for row.Next() {
 		var promoCode Models.PromoCode
 		var typeDiscountPromoCode Models.TypeDiscount
@@ -1193,30 +1203,36 @@ func (s *Storage) GetAllPromoCodes(ctx context.Context) (string, error) {
 
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				return "", fmt.Errorf("%s: %w", op, st.ErrPromoCodeFound)
+				return nil, fmt.Errorf("%s: %w", op, st.ErrPromoCodeFound)
 			}
-			return "", fmt.Errorf("%s: %w", op, err)
+			return nil, fmt.Errorf("%s: %w", op, err)
 		}
 
-		result = result + promoCode.Name + " " + typeDiscountPromoCode.NameType + " " + strconv.Itoa(int(promoCode.ValueDiscount)) + " " + promoCode.DateStartActive +
-			" " + promoCode.DateFinishActive + " " + strconv.Itoa(int(promoCode.MaxCountUses)) + ", "
+		promoCodes = append(promoCodes, &sl.PromoCode{
+			NamePromoCode: promoCode.Name,
+			TypeDiscount:  typeDiscountPromoCode.NameType,
+			ValueDiscount: promoCode.ValueDiscount,
+			DateStart:     promoCode.DateStartActive,
+			DateFinish:    promoCode.DateFinishActive,
+			MaxCountUses:  promoCode.MaxCountUses,
+		})
 	}
 
-	return result, nil
+	return promoCodes, nil
 }
 
-func (s *Storage) GetPersonalPromoCode(ctx context.Context, name string) (string, error) {
+func (s *Storage) GetPersonalPromoCode(ctx context.Context, name string) (string, string, string, string, int32, string, string, error) {
 	const op = "Storage.Sqlite.GetPersonalPromoCode"
 
 	err := s.CheckContainPersonalPromoCode(ctx, name)
 	if err != nil {
-		return "", fmt.Errorf("%s: %w", op, err)
+		return "", "", "", "", 0, "", "", fmt.Errorf("%s: %w", op, err)
 	}
 	stmt, err := s.db.Prepare("select Clients.Name, TypesOfGroups.NameType, TypesOfDiscounts.NameType, ValueDiscount, DateStartActive, DateFinishActive FROM PersonalPromoCodes " +
 		" INNER JOIN Clients ON PersonalPromoCodes.ClientFK = Clients.Id INNER JOIN TypesOfGroups ON PersonalPromoCodes.GroupFK = TypesOfGroups.Id " +
 		"INNER JOIN TypesOfDiscounts ON PersonalPromoCodes.TypeDiscountFK = TypesOfDiscounts.Id WHERE PersonalPromoCodes.NamePromoCode = ?")
 	if err != nil {
-		return "", fmt.Errorf("%s: %w", op, err)
+		return "", "", "", "", 0, "", "", fmt.Errorf("%s: %w", op, err)
 	}
 
 	row := stmt.QueryRowContext(ctx, name)
@@ -1229,30 +1245,29 @@ func (s *Storage) GetPersonalPromoCode(ctx context.Context, name string) (string
 		&personalPromoCode.DateFinishActive)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return "", fmt.Errorf("%s: %w", op, st.ErrPromoCodeFound)
+			return "", "", "", "", 0, "", "", fmt.Errorf("%s: %w", op, st.ErrPromoCodeFound)
 		}
 
-		return "", fmt.Errorf("%s: %w", op, err)
+		return "", "", "", "", 0, "", "", fmt.Errorf("%s: %w", op, err)
 	}
 
-	result := clientPersonalPromoCode.Name + " " + groupPersonalPromoCode.NameType + " " + typeDiscountPersonalPromoCode.NameType + " " + strconv.Itoa(int(personalPromoCode.ValueDiscount)) + " " + personalPromoCode.DateStartActive +
-		" " + personalPromoCode.DateFinishActive
-	return result, nil
+	return clientPersonalPromoCode.Name, groupPersonalPromoCode.NameType, name, typeDiscountPersonalPromoCode.NameType, personalPromoCode.ValueDiscount, personalPromoCode.DateStartActive, personalPromoCode.DateFinishActive, nil
 }
 
-func (s *Storage) GetAllPersonalPromoCodes(ctx context.Context) (string, error) {
+func (s *Storage) GetAllPersonalPromoCodes(ctx context.Context) ([]*sl.PersonalPromoCode, error) {
 	const op = "Storage.Sqlite.GetAllPromoCodes"
 
+	var personalPromoCodes []*sl.PersonalPromoCode
 	stmt, err := s.db.Prepare("select NamePromoCode, Clients.Name, TypesOfGroups.NameType, TypesOfDiscounts.NameType, ValueDiscount, DateStartActive, DateFinishActive FROM PersonalPromoCodes " +
 		" INNER JOIN Clients ON PersonalPromoCodes.ClientFK = Clients.Id INNER JOIN TypesOfGroups ON PersonalPromoCodes.GroupFK = TypesOfGroups.Id " +
 		"INNER JOIN TypesOfDiscounts ON PersonalPromoCodes.TypeDiscountFK = TypesOfDiscounts.Id")
 	if err != nil {
-		return "", fmt.Errorf("%s: %w", op, err)
+		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
 	row, err := stmt.QueryContext(ctx)
 	if err != nil {
-		return "", fmt.Errorf("%s: %w", op, err)
+		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 	var result string
 	for row.Next() {
@@ -1265,29 +1280,39 @@ func (s *Storage) GetAllPersonalPromoCodes(ctx context.Context) (string, error) 
 
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				return "", fmt.Errorf("%s: %w", op, st.ErrPromoCodeFound)
+				return nil, fmt.Errorf("%s: %w", op, st.ErrPromoCodeFound)
 			}
-			return "", fmt.Errorf("%s: %w", op, err)
+			return nil, fmt.Errorf("%s: %w", op, err)
 		}
 
 		result = result + personalPromoCode.NamePromoCode + " " + clientPersonalPromoCode.Name + " " + groupPersonalPromoCode.NameType + " " + typeDiscountPersonalPromoCode.NameType +
 			" " + strconv.Itoa(int(personalPromoCode.ValueDiscount)) + " " + personalPromoCode.DateStartActive +
 			" " + personalPromoCode.DateFinishActive + " " + ", "
+
+		personalPromoCodes = append(personalPromoCodes, &sl.PersonalPromoCode{
+			Client:        clientPersonalPromoCode.Name,
+			Group:         groupPersonalPromoCode.NameType,
+			NamePromoCode: personalPromoCode.NamePromoCode,
+			TypeDiscount:  typeDiscountPersonalPromoCode.NameType,
+			ValueDiscount: personalPromoCode.ValueDiscount,
+			DateStart:     personalPromoCode.DateStartActive,
+			DateFinish:    personalPromoCode.DateFinishActive,
+		})
 	}
 
-	return result, nil
+	return personalPromoCodes, nil
 }
 
-func (s *Storage) GetCashBack(ctx context.Context, idCashBack int32) (string, error) {
+func (s *Storage) GetCashBack(ctx context.Context, idCashBack int32) (int32, string, string, error) {
 	const op = "Storage.Sqlite.GetCashBack"
 
 	err := s.CheckContainCashBack(ctx, idCashBack)
 	if err != nil {
-		return "", fmt.Errorf("%s: %w", op, err)
+		return 0, "", "", fmt.Errorf("%s: %w", op, err)
 	}
 	stmt, err := s.db.Prepare("SELECT Budget, NameType, ValueCondition FROM CashBack INNER JOIN CashBackTypes ON  CashBack.TypeCashBackFK = CashBackTypes.Id WHERE CashBack.Id = ?")
 	if err != nil {
-		return "", fmt.Errorf("%s: %w", op, err)
+		return 0, "", "", fmt.Errorf("%s: %w", op, err)
 	}
 
 	row := stmt.QueryRowContext(ctx, idCashBack)
@@ -1297,27 +1322,27 @@ func (s *Storage) GetCashBack(ctx context.Context, idCashBack int32) (string, er
 	err = row.Scan(&cashback.Budget, &cashbackType.NameType, &cashback.ValueCondition)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return "", fmt.Errorf("%s: %w", op, st.ErrCashBackFound)
+			return 0, "", "", fmt.Errorf("%s: %w", op, st.ErrCashBackFound)
 		}
 
-		return "", fmt.Errorf("%s: %w", op, err)
+		return 0, "", "", fmt.Errorf("%s: %w", op, err)
 	}
 
-	result := strconv.Itoa(int(cashback.Budget)) + " " + cashbackType.NameType + " " + cashback.ValueCondition
-	return result, nil
+	return cashback.Budget, cashbackType.NameType, cashback.ValueCondition, nil
 }
 
-func (s *Storage) GetAllCashBack(ctx context.Context) (string, error) {
+func (s *Storage) GetAllCashBack(ctx context.Context) ([]*sl.CashBack, error) {
 	const op = "Storage.Sqlite.GetAllCashBack"
 
+	var cashBacks []*sl.CashBack
 	stmt, err := s.db.Prepare("SELECT Budget, CashBackTypes.NameType, ValueCondition FROM CashBack INNER JOIN CashBackTypes ON CashBack.Id = CashBackTypes.Id ")
 	if err != nil {
-		return "", fmt.Errorf("%s: %w", op, err)
+		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
 	row, err := stmt.QueryContext(ctx)
 	if err != nil {
-		return "", fmt.Errorf("%s: %w", op, err)
+		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 	var result string
 	for row.Next() {
@@ -1327,15 +1352,21 @@ func (s *Storage) GetAllCashBack(ctx context.Context) (string, error) {
 
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				return "", fmt.Errorf("%s: %w", op, st.ErrCashBackFound)
+				return nil, fmt.Errorf("%s: %w", op, st.ErrCashBackFound)
 			}
-			return "", fmt.Errorf("%s: %w", op, err)
+			return nil, fmt.Errorf("%s: %w", op, err)
 		}
 
 		result = result + strconv.Itoa(int(cashback.Budget)) + " " + cashbackType.NameType + " " + cashback.ValueCondition + ", "
+
+		cashBacks = append(cashBacks, &sl.CashBack{
+			Budget:         cashback.Budget,
+			TypeCashBack:   cashbackType.NameType,
+			ValueCondition: cashback.ValueCondition,
+		})
 	}
 
-	return result, nil
+	return cashBacks, nil
 }
 
 func (s *Storage) ChangeBudgetCashBack(ctx context.Context, idCashBack int32, budget int32) (string, error) {
