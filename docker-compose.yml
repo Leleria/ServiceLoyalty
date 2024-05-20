@@ -13,6 +13,8 @@ services:
       - "50051:50051"
     depends_on:
       - loyalty-service
+    volumes:
+          - db_data:/app/Storage
 volumes:
     db_data:
 

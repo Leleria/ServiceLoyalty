@@ -10,7 +10,7 @@ RUN go mod download
 
 COPY . .
 
-RUN CGO_ENABLED=1 go build -o loyalty-service ./Cmd/LoyaltyService
+RUN CGO_ENABLED=1 go build -o loyalty-service ./Cmd/LoyaltyService/main.go
 
 RUN apk del build-deps
 
