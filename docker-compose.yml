@@ -2,19 +2,29 @@ version: '3.9'
 
 services:
   loyalty-service:
-    build: .
+    build:
+      context: ./grpc-server
     ports:
       - "44044:44044"
     volumes:
-      -  db_data:/app/Storage
+       - db_data:/app/Storage
+    networks:
+      - my-network
   http-proxy:
-    build: E:/proxy
+    build:
+      context: ./http-server
     ports:
       - "50051:50051"
+    environment:
+        - GRPC_SERVER_ADDRESS=loyalty-service:44044
     depends_on:
       - loyalty-service
-    volumes:
-          - db_data:/app/Storage
+    networks:
+      - my-network
 volumes:
     db_data:
+
+networks:
+  my-network:
+    driver: bridge
 
