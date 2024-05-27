@@ -1335,7 +1335,7 @@ func (s *Storage) GetAllCashBack(ctx context.Context) ([]*sl.CashBack, error) {
 	const op = "Storage.Sqlite.GetAllCashBack"
 
 	var cashBacks []*sl.CashBack
-	stmt, err := s.db.Prepare("SELECT Budget, CashBackTypes.NameType, ValueCondition FROM CashBack INNER JOIN CashBackTypes ON CashBack.Id = CashBackTypes.Id ")
+	stmt, err := s.db.Prepare("SELECT Budget, CashBackTypes.NameType, ValueCondition FROM CashBack INNER JOIN CashBackTypes ON CashBack.TypeCashBackFK = CashBackTypes.Id ")
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
@@ -1344,7 +1344,6 @@ func (s *Storage) GetAllCashBack(ctx context.Context) ([]*sl.CashBack, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
-	var result string
 	for row.Next() {
 		var cashback Models.CashBack
 		var cashbackType Models.TypeCashBack
@@ -1356,8 +1355,6 @@ func (s *Storage) GetAllCashBack(ctx context.Context) ([]*sl.CashBack, error) {
 			}
 			return nil, fmt.Errorf("%s: %w", op, err)
 		}
-
-		result = result + strconv.Itoa(int(cashback.Budget)) + " " + cashbackType.NameType + " " + cashback.ValueCondition + ", "
 
 		cashBacks = append(cashBacks, &sl.CashBack{
 			Budget:         cashback.Budget,

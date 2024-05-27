@@ -566,10 +566,10 @@ func (l *Loyalty) GetAllCashBack(ctx context.Context) ([]*sl.CashBack, error) {
 	)
 	cashBacks, err := l.promoCodeChanger.GetAllCashBack(ctx)
 	if err != nil {
-		log.Error("failed to get all cashbacks", Sl.Err(err))
+		log.Error("failed to get all cashback", Sl.Err(err))
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
-	log.Info("received all cashbacks " + "\"")
+	log.Info("received all cashback " + "\"")
 	return cashBacks, nil
 }
 

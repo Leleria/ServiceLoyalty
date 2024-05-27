@@ -24,13 +24,14 @@ func main() {
 		log.Fatal("failed to register proxy handler: %v", err)
 	}
 
-	corsHandler := cors.New(cors.Options{
+	c := cors.New(cors.Options{
 		AllowedOrigins:   []string{"*"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE"},
 		AllowedHeaders:   []string{"Authorization", "Content-Type"},
 		AllowCredentials: true,
-	}).Handler(mux)
+	})
 
+	corsHandler := c.Handler(mux)
 	httpServer := &http.Server{
 		Addr:    ":50051",
 		Handler: corsHandler,
