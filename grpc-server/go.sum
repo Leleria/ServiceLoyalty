@@ -9,6 +9,8 @@ github.com/Leleria/Contract v0.0.31 h1:vW+HciyTjcObZhPKQxCks4xxBCEO+ffwj5sJgmT92
 github.com/Leleria/Contract v0.0.31/go.mod h1:CB9VKHi7Hw0VNc5dFa2GsnRl4XlCePSBfqaq8coruXI=
 github.com/Leleria/Contract v0.0.32 h1:zQS+BPFNt1Wb0kPgy+lgOeZNgOK616l09xNBnc+Fj48=
 github.com/Leleria/Contract v0.0.32/go.mod h1:CB9VKHi7Hw0VNc5dFa2GsnRl4XlCePSBfqaq8coruXI=
+github.com/Leleria/Contract v0.0.33 h1:4ZT6l1WgtlxzDOIV1/80uxzBCZyDgsgI7VOeQwsAwoc=
+github.com/Leleria/Contract v0.0.33/go.mod h1:CB9VKHi7Hw0VNc5dFa2GsnRl4XlCePSBfqaq8coruXI=
 github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kdvxnR2qWY=
 github.com/brianvoe/gofakeit/v6 v6.28.0 h1:Xib46XXuQfmlLS2EXRuJpqcw8St6qSZz75OUo0tgAW4=
 github.com/brianvoe/gofakeit/v6 v6.28.0/go.mod h1:Xj58BMSnFqcn/fAQeSK+/PLtC5kSb7FJIq4JyGa8vEs=

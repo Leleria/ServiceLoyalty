@@ -1,5 +1,7 @@
 github.com/Leleria/Contract v0.0.32 h1:zQS+BPFNt1Wb0kPgy+lgOeZNgOK616l09xNBnc+Fj48=
 github.com/Leleria/Contract v0.0.32/go.mod h1:CB9VKHi7Hw0VNc5dFa2GsnRl4XlCePSBfqaq8coruXI=
+github.com/Leleria/Contract v0.0.33 h1:4ZT6l1WgtlxzDOIV1/80uxzBCZyDgsgI7VOeQwsAwoc=
+github.com/Leleria/Contract v0.0.33/go.mod h1:CB9VKHi7Hw0VNc5dFa2GsnRl4XlCePSBfqaq8coruXI=
 github.com/google/go-cmp v0.6.0 h1:ofyhxvXcZhMsU5ulbFiLKl/XBFqE1GSq7atu8tAmTRI=
 github.com/google/go-cmp v0.6.0/go.mod h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeNGIjoY=
 github.com/grpc-ecosystem/grpc-gateway/v2 v2.20.0 h1:bkypFPDjIYGfCYD5mRBvpqxfYX1YCS1PXdKYWi8FsN0=

@@ -17,7 +17,7 @@ type PromoCodeChanger interface {
 		valueDiscount int32, dateStartActive string,
 		dateFinishActive string, maxCountUses int32) (
 		result string, err error)
-	GetPromoCode(ctx context.Context, name string) (namePromoCode string, typeDiscount string, valueDiscount int32, dateStart string, dateFinish string, maxCountUses int32, err error)
+	GetPromoCode(ctx context.Context, name string) (idPromoCode int32, namePromoCode string, typeDiscount string, valueDiscount int32, dateStart string, dateFinish string, maxCountUses int32, err error)
 	GetAllPromoCodes(ctx context.Context) (promoCodes []*sl.PromoCode, err error)
 	DeletePromoCode(ctx context.Context, name string) (result string, err error)
 	ChangeNamePromoCode(ctx context.Context, name string, newName string) (result string, err error)
@@ -35,7 +35,7 @@ type PromoCodeChanger interface {
 	ChangeValueDiscountPersonalPromoCode(ctx context.Context, name string, valueDiscount int32) (result string, err error)
 	ChangeDateStartActivePersonalPromoCode(ctx context.Context, name string, dateStartActive string) (result string, err error)
 	ChangeDateFinishActivePersonalPromoCode(ctx context.Context, name string, dateFinish string) (result string, err error)
-	GetPersonalPromoCode(ctx context.Context, name string) (client string, group string, namePromoCode string, typeDiscount string, valueDiscount int32, dateStart string, dateFinish string, err error)
+	GetPersonalPromoCode(ctx context.Context, name string) (idPromoCode int32, client string, group string, namePromoCode string, typeDiscount string, valueDiscount int32, dateStart string, dateFinish string, err error)
 	GetAllPersonalPromoCodes(ctx context.Context) (personalPromoCodes []*sl.PersonalPromoCode, err error)
 
 	GetClient(ctx context.Context, idClient int32) (name string, email string, countBonuses int32, loyaltyLevel string, err error)
@@ -48,7 +48,7 @@ type PromoCodeChanger interface {
 	ChangeBudgetCashBack(ctx context.Context, idCashBack int32, budget int32) (result string, err error)
 	ChangeTypeCashBack(ctx context.Context, idCashBack int32, typeCashBack int32) (result string, err error)
 	ChangeConditionCashBack(ctx context.Context, idCashBack int32, condition string) (result string, err error)
-	GetCashBack(ctx context.Context, idCashBack int32) (budget int32, typeCashBack string, valueCondition string, err error)
+	GetCashBack(ctx context.Context, idCashBack int32) (id int32, budget int32, typeCashBack string, valueCondition string, err error)
 	GetAllCashBack(ctx context.Context) (cashBacks []*sl.CashBack, err error)
 	DeleteCashBack(ctx context.Context, idCashBack int32) (result string, err error)
 
@@ -331,19 +331,19 @@ func (l *Loyalty) DeleteCashBack(ctx context.Context, idCashBack int32) (result 
 	return result, nil
 }
 
-func (l *Loyalty) GetPromoCode(ctx context.Context, name string) (string, string, int32, string, string, int32, error) {
+func (l *Loyalty) GetPromoCode(ctx context.Context, name string) (int32, string, string, int32, string, string, int32, error) {
 	const op = "Loyalty.GetPromoCode"
 	log := l.log.With(
 		slog.String("op", op),
 		slog.String("name", name),
 	)
-	namePromoCode, typeDiscount, valueDiscount, dateStart, dateFinish, maxCountUses, err := l.promoCodeChanger.GetPromoCode(ctx, name)
+	idPromoCode, namePromoCode, typeDiscount, valueDiscount, dateStart, dateFinish, maxCountUses, err := l.promoCodeChanger.GetPromoCode(ctx, name)
 	if err != nil {
 		log.Error("failed to get promo code", Sl.Err(err))
-		return "", "", 0, "", "", 0, fmt.Errorf("%s: %w", op, err)
+		return 0, "", "", 0, "", "", 0, fmt.Errorf("%s: %w", op, err)
 	}
 	log.Info("received promo code " + "\"" + name + "\"")
-	return namePromoCode, typeDiscount, valueDiscount, dateStart, dateFinish, maxCountUses, nil
+	return idPromoCode, namePromoCode, typeDiscount, valueDiscount, dateStart, dateFinish, maxCountUses, nil
 }
 
 func (l *Loyalty) GetAllPromoCodes(ctx context.Context) ([]*sl.PromoCode, error) {
@@ -360,19 +360,19 @@ func (l *Loyalty) GetAllPromoCodes(ctx context.Context) ([]*sl.PromoCode, error)
 	return promoCodes, nil
 }
 
-func (l *Loyalty) GetPersonalPromoCode(ctx context.Context, name string) (string, string, string, string, int32, string, string, error) {
+func (l *Loyalty) GetPersonalPromoCode(ctx context.Context, name string) (int32, string, string, string, string, int32, string, string, error) {
 	const op = "Loyalty.GetPersonalPromoCode"
 	log := l.log.With(
 		slog.String("op", op),
 		slog.String("name", name),
 	)
-	client, group, namePromoCode, typeDiscount, valueDiscount, dateStart, dateFinish, err := l.promoCodeChanger.GetPersonalPromoCode(ctx, name)
+	idPromoCode, client, group, namePromoCode, typeDiscount, valueDiscount, dateStart, dateFinish, err := l.promoCodeChanger.GetPersonalPromoCode(ctx, name)
 	if err != nil {
 		log.Error("failed to get personal promo code", Sl.Err(err))
-		return "", "", "", "", 0, "", "", fmt.Errorf("%s: %w", op, err)
+		return 0, "", "", "", "", 0, "", "", fmt.Errorf("%s: %w", op, err)
 	}
 	log.Info("received personal promo code " + "\"" + name + "\"")
-	return client, group, namePromoCode, typeDiscount, valueDiscount, dateStart, dateFinish, nil
+	return idPromoCode, client, group, namePromoCode, typeDiscount, valueDiscount, dateStart, dateFinish, nil
 }
 
 func (l *Loyalty) GetAllPersonalPromoCodes(ctx context.Context) ([]*sl.PersonalPromoCode, error) {
@@ -544,19 +544,19 @@ func (l *Loyalty) SettingUpBudget(ctx context.Context, typeCashBack int32, condi
 	return result, nil
 }
 
-func (l *Loyalty) GetCashBack(ctx context.Context, idCashBack int32) (int32, string, string, error) {
+func (l *Loyalty) GetCashBack(ctx context.Context, idCashBack int32) (int32, int32, string, string, error) {
 	const op = "Loyalty.GetCashBack"
 	log := l.log.With(
 		slog.String("op", op),
 		slog.String("id", strconv.Itoa(int(idCashBack))),
 	)
-	budget, typeDiscount, valueCondition, err := l.promoCodeChanger.GetCashBack(ctx, idCashBack)
+	id, budget, typeDiscount, valueCondition, err := l.promoCodeChanger.GetCashBack(ctx, idCashBack)
 	if err != nil {
 		log.Error("failed to get cashback", Sl.Err(err))
-		return 0, "", "", fmt.Errorf("%s: %w", op, err)
+		return 0, 0, "", "", fmt.Errorf("%s: %w", op, err)
 	}
 	log.Info("received cashback " + "\"" + strconv.Itoa(int(idCashBack)) + "\"")
-	return budget, typeDiscount, valueCondition, nil
+	return id, budget, typeDiscount, valueCondition, nil
 }
 
 func (l *Loyalty) GetAllCashBack(ctx context.Context) ([]*sl.CashBack, error) {

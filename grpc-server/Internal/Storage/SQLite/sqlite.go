@@ -1151,41 +1151,41 @@ func (s *Storage) DeletePersonalPromoCode(ctx context.Context, name string) (str
 	return "complete", nil
 }
 
-func (s *Storage) GetPromoCode(ctx context.Context, name string) (string, string, int32, string, string, int32, error) {
+func (s *Storage) GetPromoCode(ctx context.Context, name string) (int32, string, string, int32, string, string, int32, error) {
 	const op = "Storage.Sqlite.GetPromoCode"
 
 	err := s.CheckContainPromoCode(ctx, name)
 	if err != nil {
-		return "", "", 0, "", "", 0, fmt.Errorf("%s: %w", op, err)
+		return 0, "", "", 0, "", "", 0, fmt.Errorf("%s: %w", op, err)
 	}
-	stmt, err := s.db.Prepare("select TypesOfDiscounts.NameType, ValueDiscount, DateStartActive, DateFinishActive," +
+	stmt, err := s.db.Prepare("select PromoCodes.Id, PromoCodes.Name, TypesOfDiscounts.NameType, ValueDiscount, DateStartActive, DateFinishActive," +
 		" MaxCountUses FROM PromoCodes INNER JOIN TypesOfDiscounts ON PromoCodes.TypeDiscountFK = TypesOfDiscounts.Id  WHERE PromoCodes.Name = ?")
 	if err != nil {
-		return "", "", 0, "", "", 0, fmt.Errorf("%s: %w", op, err)
+		return 0, "", "", 0, "", "", 0, fmt.Errorf("%s: %w", op, err)
 	}
 
 	row := stmt.QueryRowContext(ctx, name)
 
 	var promoCode Models.PromoCode
 	var typeDiscountPromoCode Models.TypeDiscount
-	err = row.Scan(&typeDiscountPromoCode.NameType, &promoCode.ValueDiscount, &promoCode.DateStartActive,
+	err = row.Scan(&promoCode.Id, &promoCode.Name, &typeDiscountPromoCode.NameType, &promoCode.ValueDiscount, &promoCode.DateStartActive,
 		&promoCode.DateFinishActive, &promoCode.MaxCountUses)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return "", "", 0, "", "", 0, fmt.Errorf("%s: %w", op, st.ErrPromoCodeFound)
+			return 0, "", "", 0, "", "", 0, fmt.Errorf("%s: %w", op, st.ErrPromoCodeFound)
 		}
 
-		return "", "", 0, "", "", 0, fmt.Errorf("%s: %w", op, err)
+		return 0, "", "", 0, "", "", 0, fmt.Errorf("%s: %w", op, err)
 	}
 
-	return name, typeDiscountPromoCode.NameType, promoCode.ValueDiscount, promoCode.DateStartActive, promoCode.DateFinishActive, promoCode.MaxCountUses, nil
+	return promoCode.Id, promoCode.Name, typeDiscountPromoCode.NameType, promoCode.ValueDiscount, promoCode.DateStartActive, promoCode.DateFinishActive, promoCode.MaxCountUses, nil
 }
 
 func (s *Storage) GetAllPromoCodes(ctx context.Context) ([]*sl.PromoCode, error) {
 	const op = "Storage.Sqlite.GetAllPromoCodes"
 
 	var promoCodes []*sl.PromoCode
-	stmt, err := s.db.Prepare("select Name, TypesOfDiscounts.NameType, ValueDiscount, DateStartActive, DateFinishActive," +
+	stmt, err := s.db.Prepare("select PromoCodes.Id, Name, TypesOfDiscounts.NameType, ValueDiscount, DateStartActive, DateFinishActive," +
 		" MaxCountUses FROM PromoCodes INNER JOIN TypesOfDiscounts ON PromoCodes.TypeDiscountFK = TypesOfDiscounts.Id ")
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
@@ -1198,7 +1198,7 @@ func (s *Storage) GetAllPromoCodes(ctx context.Context) ([]*sl.PromoCode, error)
 	for row.Next() {
 		var promoCode Models.PromoCode
 		var typeDiscountPromoCode Models.TypeDiscount
-		err := row.Scan(&promoCode.Name, &typeDiscountPromoCode.NameType, &promoCode.ValueDiscount, &promoCode.DateStartActive,
+		err := row.Scan(&promoCode.Id, &promoCode.Name, &typeDiscountPromoCode.NameType, &promoCode.ValueDiscount, &promoCode.DateStartActive,
 			&promoCode.DateFinishActive, &promoCode.MaxCountUses)
 
 		if err != nil {
@@ -1209,6 +1209,7 @@ func (s *Storage) GetAllPromoCodes(ctx context.Context) ([]*sl.PromoCode, error)
 		}
 
 		promoCodes = append(promoCodes, &sl.PromoCode{
+			IdPromoCode:   promoCode.Id,
 			NamePromoCode: promoCode.Name,
 			TypeDiscount:  typeDiscountPromoCode.NameType,
 			ValueDiscount: promoCode.ValueDiscount,
@@ -1221,18 +1222,18 @@ func (s *Storage) GetAllPromoCodes(ctx context.Context) ([]*sl.PromoCode, error)
 	return promoCodes, nil
 }
 
-func (s *Storage) GetPersonalPromoCode(ctx context.Context, name string) (string, string, string, string, int32, string, string, error) {
+func (s *Storage) GetPersonalPromoCode(ctx context.Context, name string) (int32, string, string, string, string, int32, string, string, error) {
 	const op = "Storage.Sqlite.GetPersonalPromoCode"
 
 	err := s.CheckContainPersonalPromoCode(ctx, name)
 	if err != nil {
-		return "", "", "", "", 0, "", "", fmt.Errorf("%s: %w", op, err)
+		return 0, "", "", "", "", 0, "", "", fmt.Errorf("%s: %w", op, err)
 	}
-	stmt, err := s.db.Prepare("select Clients.Name, TypesOfGroups.NameType, TypesOfDiscounts.NameType, ValueDiscount, DateStartActive, DateFinishActive FROM PersonalPromoCodes " +
+	stmt, err := s.db.Prepare("select PersonalPromoCodes.Id, PersonalPromoCodes.NamePromoCode, Clients.Name, TypesOfGroups.NameType, TypesOfDiscounts.NameType, ValueDiscount, DateStartActive, DateFinishActive FROM PersonalPromoCodes " +
 		" INNER JOIN Clients ON PersonalPromoCodes.ClientFK = Clients.Id INNER JOIN TypesOfGroups ON PersonalPromoCodes.GroupFK = TypesOfGroups.Id " +
 		"INNER JOIN TypesOfDiscounts ON PersonalPromoCodes.TypeDiscountFK = TypesOfDiscounts.Id WHERE PersonalPromoCodes.NamePromoCode = ?")
 	if err != nil {
-		return "", "", "", "", 0, "", "", fmt.Errorf("%s: %w", op, err)
+		return 0, "", "", "", "", 0, "", "", fmt.Errorf("%s: %w", op, err)
 	}
 
 	row := stmt.QueryRowContext(ctx, name)
@@ -1241,24 +1242,24 @@ func (s *Storage) GetPersonalPromoCode(ctx context.Context, name string) (string
 	var typeDiscountPersonalPromoCode Models.TypeDiscount
 	var clientPersonalPromoCode Models.Client
 	var groupPersonalPromoCode Models.Group
-	err = row.Scan(&clientPersonalPromoCode.Name, &groupPersonalPromoCode.NameType, &typeDiscountPersonalPromoCode.NameType, &personalPromoCode.ValueDiscount, &personalPromoCode.DateStartActive,
+	err = row.Scan(&personalPromoCode.Id, &personalPromoCode.NamePromoCode, &clientPersonalPromoCode.Name, &groupPersonalPromoCode.NameType, &typeDiscountPersonalPromoCode.NameType, &personalPromoCode.ValueDiscount, &personalPromoCode.DateStartActive,
 		&personalPromoCode.DateFinishActive)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return "", "", "", "", 0, "", "", fmt.Errorf("%s: %w", op, st.ErrPromoCodeFound)
+			return 0, "", "", "", "", 0, "", "", fmt.Errorf("%s: %w", op, st.ErrPromoCodeFound)
 		}
 
-		return "", "", "", "", 0, "", "", fmt.Errorf("%s: %w", op, err)
+		return 0, "", "", "", "", 0, "", "", fmt.Errorf("%s: %w", op, err)
 	}
 
-	return clientPersonalPromoCode.Name, groupPersonalPromoCode.NameType, name, typeDiscountPersonalPromoCode.NameType, personalPromoCode.ValueDiscount, personalPromoCode.DateStartActive, personalPromoCode.DateFinishActive, nil
+	return personalPromoCode.Id, personalPromoCode.NamePromoCode, clientPersonalPromoCode.Name, groupPersonalPromoCode.NameType, typeDiscountPersonalPromoCode.NameType, personalPromoCode.ValueDiscount, personalPromoCode.DateStartActive, personalPromoCode.DateFinishActive, nil
 }
 
 func (s *Storage) GetAllPersonalPromoCodes(ctx context.Context) ([]*sl.PersonalPromoCode, error) {
 	const op = "Storage.Sqlite.GetAllPromoCodes"
 
 	var personalPromoCodes []*sl.PersonalPromoCode
-	stmt, err := s.db.Prepare("select NamePromoCode, Clients.Name, TypesOfGroups.NameType, TypesOfDiscounts.NameType, ValueDiscount, DateStartActive, DateFinishActive FROM PersonalPromoCodes " +
+	stmt, err := s.db.Prepare("select PersonalPromoCodes.Id, NamePromoCode, Clients.Name, TypesOfGroups.NameType, TypesOfDiscounts.NameType, ValueDiscount, DateStartActive, DateFinishActive FROM PersonalPromoCodes " +
 		" INNER JOIN Clients ON PersonalPromoCodes.ClientFK = Clients.Id INNER JOIN TypesOfGroups ON PersonalPromoCodes.GroupFK = TypesOfGroups.Id " +
 		"INNER JOIN TypesOfDiscounts ON PersonalPromoCodes.TypeDiscountFK = TypesOfDiscounts.Id")
 	if err != nil {
@@ -1275,7 +1276,7 @@ func (s *Storage) GetAllPersonalPromoCodes(ctx context.Context) ([]*sl.PersonalP
 		var typeDiscountPersonalPromoCode Models.TypeDiscount
 		var clientPersonalPromoCode Models.Client
 		var groupPersonalPromoCode Models.Group
-		err := row.Scan(&personalPromoCode.NamePromoCode, &clientPersonalPromoCode.Name, &groupPersonalPromoCode.NameType, &typeDiscountPersonalPromoCode.NameType, &personalPromoCode.ValueDiscount, &personalPromoCode.DateStartActive,
+		err := row.Scan(&personalPromoCode.Id, &personalPromoCode.NamePromoCode, &clientPersonalPromoCode.Name, &groupPersonalPromoCode.NameType, &typeDiscountPersonalPromoCode.NameType, &personalPromoCode.ValueDiscount, &personalPromoCode.DateStartActive,
 			&personalPromoCode.DateFinishActive)
 
 		if err != nil {
@@ -1290,6 +1291,7 @@ func (s *Storage) GetAllPersonalPromoCodes(ctx context.Context) ([]*sl.PersonalP
 			" " + personalPromoCode.DateFinishActive + " " + ", "
 
 		personalPromoCodes = append(personalPromoCodes, &sl.PersonalPromoCode{
+			IdPromoCode:   personalPromoCode.Id,
 			Client:        clientPersonalPromoCode.Name,
 			Group:         groupPersonalPromoCode.NameType,
 			NamePromoCode: personalPromoCode.NamePromoCode,
@@ -1303,39 +1305,39 @@ func (s *Storage) GetAllPersonalPromoCodes(ctx context.Context) ([]*sl.PersonalP
 	return personalPromoCodes, nil
 }
 
-func (s *Storage) GetCashBack(ctx context.Context, idCashBack int32) (int32, string, string, error) {
+func (s *Storage) GetCashBack(ctx context.Context, idCashBack int32) (int32, int32, string, string, error) {
 	const op = "Storage.Sqlite.GetCashBack"
 
 	err := s.CheckContainCashBack(ctx, idCashBack)
 	if err != nil {
-		return 0, "", "", fmt.Errorf("%s: %w", op, err)
+		return 0, 0, "", "", fmt.Errorf("%s: %w", op, err)
 	}
-	stmt, err := s.db.Prepare("SELECT Budget, NameType, ValueCondition FROM CashBack INNER JOIN CashBackTypes ON  CashBack.TypeCashBackFK = CashBackTypes.Id WHERE CashBack.Id = ?")
+	stmt, err := s.db.Prepare("SELECT CashBack.Id, Budget, NameType, ValueCondition FROM CashBack INNER JOIN CashBackTypes ON  CashBack.TypeCashBackFK = CashBackTypes.Id WHERE CashBack.Id = ?")
 	if err != nil {
-		return 0, "", "", fmt.Errorf("%s: %w", op, err)
+		return 0, 0, "", "", fmt.Errorf("%s: %w", op, err)
 	}
 
 	row := stmt.QueryRowContext(ctx, idCashBack)
 
 	var cashback Models.CashBack
 	var cashbackType Models.TypeCashBack
-	err = row.Scan(&cashback.Budget, &cashbackType.NameType, &cashback.ValueCondition)
+	err = row.Scan(&cashback.Id, &cashback.Budget, &cashbackType.NameType, &cashback.ValueCondition)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return 0, "", "", fmt.Errorf("%s: %w", op, st.ErrCashBackFound)
+			return 0, 0, "", "", fmt.Errorf("%s: %w", op, st.ErrCashBackFound)
 		}
 
-		return 0, "", "", fmt.Errorf("%s: %w", op, err)
+		return 0, 0, "", "", fmt.Errorf("%s: %w", op, err)
 	}
 
-	return cashback.Budget, cashbackType.NameType, cashback.ValueCondition, nil
+	return cashback.Id, cashback.Budget, cashbackType.NameType, cashback.ValueCondition, nil
 }
 
 func (s *Storage) GetAllCashBack(ctx context.Context) ([]*sl.CashBack, error) {
 	const op = "Storage.Sqlite.GetAllCashBack"
 
 	var cashBacks []*sl.CashBack
-	stmt, err := s.db.Prepare("SELECT Budget, CashBackTypes.NameType, ValueCondition FROM CashBack INNER JOIN CashBackTypes ON CashBack.TypeCashBackFK = CashBackTypes.Id ")
+	stmt, err := s.db.Prepare("SELECT CashBack.Id, Budget, CashBackTypes.NameType, ValueCondition FROM CashBack INNER JOIN CashBackTypes ON CashBack.TypeCashBackFK = CashBackTypes.Id ")
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
@@ -1347,7 +1349,7 @@ func (s *Storage) GetAllCashBack(ctx context.Context) ([]*sl.CashBack, error) {
 	for row.Next() {
 		var cashback Models.CashBack
 		var cashbackType Models.TypeCashBack
-		err := row.Scan(&cashback.Budget, &cashbackType.NameType, &cashback.ValueCondition)
+		err := row.Scan(&cashback.Id, &cashback.Budget, &cashbackType.NameType, &cashback.ValueCondition)
 
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
@@ -1357,6 +1359,7 @@ func (s *Storage) GetAllCashBack(ctx context.Context) ([]*sl.CashBack, error) {
 		}
 
 		cashBacks = append(cashBacks, &sl.CashBack{
+			IdCashBack:     cashback.Id,
 			Budget:         cashback.Budget,
 			TypeCashBack:   cashbackType.NameType,
 			ValueCondition: cashback.ValueCondition,

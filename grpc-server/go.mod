@@ -3,7 +3,7 @@ module github.com/Leleria/ServiceLoyalty
 go 1.21
 
 require (
-	github.com/Leleria/Contract v0.0.32
+	github.com/Leleria/Contract v0.0.33
 	github.com/brianvoe/gofakeit/v6 v6.28.0
 	github.com/fatih/color v1.16.0
 	github.com/golang-migrate/migrate/v4 v4.17.0
